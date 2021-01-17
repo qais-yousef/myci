@@ -1,0 +1,893 @@
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Author: Qais Yousef <qyousef@layalina.io>
+
+import argparse
+import configparser
+import git
+import pyjen.plugins.folderjob as FolderJob
+import pyjen.jenkins as jenkins
+import os
+import stat
+import re
+import time
+import json
+import fcntl
+import requests
+import pydoc
+
+try:
+    import argcomplete
+except:
+    pass
+
+from threading import Thread
+
+
+#
+# Config info
+#
+CONFIG_PATH=os.path.expanduser('~/.myci')
+CONFIG_FILE=os.path.join(CONFIG_PATH, 'config')
+
+TAGS_DB=os.path.join(CONFIG_PATH, 'tagsdb')
+TESTS_DB=os.path.join(CONFIG_PATH, 'testsdb')
+
+DOWNLOAD_LINK=''
+VERSION_LINK=''
+
+LOCK_FILE=os.path.join(CONFIG_PATH, 'lock')
+
+if not os.path.exists(CONFIG_PATH):
+    os.makedirs(CONFIG_PATH)
+
+
+#
+# Defaults
+#
+DEFAULT_VIEW=''
+
+
+###############################################
+#
+# Version class manages the version of the
+# script and updating to latest version if:
+#
+#   * Force update if Major is different
+#   * Warn to update if Minor is different
+#
+###############################################
+class Version:
+    def __init__(self):
+        self.major = 0
+        self.minor = 4
+        self.rc = '-beta'
+
+        self.version = '{}.{}{}'.format(self.major, self.minor, self.rc)
+
+        self.print_version()
+        #self.check_new_version()
+
+    def print_version(self):
+        print("myci v{}".format(self.version))
+
+    def print_update_msg(self, major, minor):
+        print()
+        print("############################################")
+        print(" A new version is available v{}.{}".format(major, minor))
+        print(" Run `myci --update` to update")
+        print("############################################")
+        print()
+
+    def check_new_version(self):
+        r = requests.get(VERSION_LINK)
+        r = r.json()
+        major = r['Major']
+        minor = r['Minor']
+
+        if self.major < major:
+            self.print_update_msg(major, minor)
+            raise Exception("Must update to the latest version!")
+
+        if self.minor < minor:
+            self.print_update_msg(major, minor)
+
+    def create_version_json(self):
+        with open("version", 'w') as fp:
+            version = {}
+            version['Major'] = self.major
+            version['Minor'] = self.minor
+
+            json.dump(version, fp)
+
+    def update(self):
+        p = os.path.abspath(__file__)
+        r = requests.get(DOWNLOAD_LINK)
+        with open(p, 'w') as fp:
+            fp.write(r.text)
+
+
+###############################################
+#
+# Config class manages user configuration file
+#
+###############################################
+class Config:
+    # Public functions
+    def get_url(self):
+        return self.config.get('jenkins', 'url')
+
+    def get_view(self):
+        return self.config.get('jenkins', 'view')
+
+    def get_username(self):
+        return self.config.get('user', 'username')
+
+    def get_token(self):
+        return self.config.get('user', 'token')
+
+    def get_email(self):
+        return self.config.get('user', 'email')
+
+    # Private functions
+    def read_username(self):
+        print('Jenkins username: ')
+        username = input()
+        self.config.set('user', 'username', username)
+
+    def read_token(self):
+        print('Jenkins token: ')
+        token = input()
+        self.config.set('user', 'token', token)
+
+    def read_email(self):
+        print('Email: ')
+        token = input()
+        self.config.set('user', 'email', token)
+
+    def read_url(self):
+        print('Jenkins url: ')
+        url = input()
+
+        if url:
+            self.config.set('jenkins', 'url', url)
+
+    # Initialize everything
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+
+        if os.path.isfile(CONFIG_FILE):
+            self.config.read(CONFIG_FILE)
+
+        if not self.config.has_section('user'):
+            self.config.add_section('user')
+            print('No user configuration found')
+            self.read_username()
+            self.read_token()
+            self.read_email()
+        else:
+            if not self.config.has_option('user', 'username'):
+                print('Missing jenkins username')
+                self.read_username()
+            if not self.config.has_option('user', 'token'):
+                print('Missing jenkins token')
+                self.read_token()
+            if not self.config.has_option('user', 'email'):
+                print('Missing jenkins email')
+                self.read_email()
+
+        if not self.config.has_section('jenkins'):
+            self.config.add_section('jenkins')
+            print('No jenkins configuration found')
+            self.read_url()
+            self.config.set('jenkins', 'view', DEFAULT_VIEW)
+        else:
+            if not self.config.has_option('jenkins', 'url'):
+                print('Missing jenkins url')
+                self.read_url()
+            if not self.config.has_option('jenkins', 'view'):
+                self.config.set('jenkins', 'view', DEFAULT_VIEW)
+
+        with open(CONFIG_FILE, 'w') as config_file:
+            self.config.write(config_file)
+
+        # Since we store the password in plaintext, protect it so that only
+        # the owner can read it
+        os.chmod(CONFIG_FILE, stat.S_IRUSR | stat.S_IWUSR)
+
+
+###############################################
+#
+# TestsDB manages talking to the tests database
+#
+# The DB is a simple json file. But we can use
+# something more sophisticated if we need later
+#
+###############################################
+class TestsDB:
+    def __init__(self):
+        # Load the Json file, if not empty
+        if os.path.exists(TESTS_DB) and os.path.getsize(TESTS_DB):
+            with open(TESTS_DB) as fd:
+                self.db = json.load(fd)
+        else:
+            self.db = {}
+
+    def exists(self, suite):
+        if suite in self.db.keys():
+            return True
+
+        return False
+
+    def suites(self):
+        return self.db.keys()
+
+    def get_tests_list(self, suite):
+        if not suite in self.db.keys():
+            raise Exception("Test Suite <{}> doesn't exists!".format(suite))
+
+        tests = []
+        if isinstance(self.db[suite], list):
+            for test in self.db[suite]:
+                tests.append(test)
+        else:
+            tests.append(self.db[suite])
+
+        return tests
+
+
+###############################################
+#
+# TagDB manages talking to the tags database
+#
+# The DB is a simple json file. But we can use
+# something more sophisticated if we need later
+#
+###############################################
+class TagsDB:
+    def __init__(self):
+        # Load the Json file, if not empty
+        if os.path.exists(TAGS_DB) and os.path.getsize(TAGS_DB):
+            with open(TAGS_DB) as fd:
+                self.db = json.load(fd)
+        else:
+            self.db = {}
+
+    def update_job(self, tag, job, build_number):
+        if not self.exists(tag):
+            self.db[tag] = {}
+            self.db[tag]['jobs'] = {}
+
+        self.db[tag]['jobs'][job] = build_number
+
+        with open(TAGS_DB, 'w') as fd:
+            json.dump(self.db, fd, indent=4)
+
+    def update_state(self, tag, finished):
+        if not self.exists(tag):
+            self.db[tag] = {}
+
+        self.db[tag]['state'] = finished
+
+        with open(TAGS_DB, 'w') as fd:
+            json.dump(self.db, fd, indent=4)
+
+    def get_state(self, tag):
+        if not self.exists(tag):
+            raise Exception("Tag <{}> doesn't exists!".format(tag))
+
+        return self.db[tag]['state']
+
+    def exists(self, tag):
+        if tag in self.db.keys():
+            return True
+
+        return False
+
+    def get_tags_list(self):
+        #
+        # Return a copy because when deleting the list will be modified while
+        # we're still traversing it.
+        #
+        return [key for key in self.db.keys()]
+
+    def get_jobs_list(self, tag):
+        if not self.exists(tag):
+            raise Exception("Tag <{}> doesn't exists!".format(self.tag))
+
+        return self.db[tag]['jobs'].items()
+
+    def delete_tag(self, tag):
+        if not self.exists(tag):
+            raise Exception("Tag <{}> doesn't exists!".format(self.tag))
+
+        del self.db[tag]
+
+        with open(TAGS_DB, 'w') as fd:
+            json.dump(self.db, fd, indent=4)
+
+
+
+###############################################
+#
+# MyCI class implements the
+# different options the user passes to us.
+#
+# And handles setting up connection with jenkins
+#
+###############################################
+class MyCI:
+    def __init__(self, tag, branch, base, remote, param, no_base, no_push_verify):
+        self.tracked_jobs = []
+        self.tag = tag
+        self.branch = branch
+        self.base = base
+        self.remote = remote
+        self.param = param
+        self.no_base = no_base
+        self.push_verify = not no_push_verify
+        self.repo = None
+
+        self.version = Version()
+        self.config = Config()
+        self.tagsdb = TagsDB()
+        self.testsdb = TestsDB()
+        self.verify_tag()
+        self.connect()
+
+    def version_json(self):
+        self.version.create_version_json()
+
+    def update(self):
+        self.version.update()
+
+    def parse_tag(self):
+        if self.tag is None:
+            (remote, url, branch) = self.guess_remote()
+
+            self.tag = remote + '-' + branch + '-' + time.strftime('%Y%m%d-%H%M%S')
+        else:
+            s = self.tag
+
+            # Remove all non-word characters (everything except numbers and letters)
+            s = re.sub(r"[^\w\s]", '', s)
+
+            # Replace all runs of whitespace with a single dash
+            s = re.sub(r"\s+", '_', s)
+
+            self.tag = s
+
+    def verify_tag(self):
+        if self.tag is None:
+            return
+
+        if self.tagsdb.exists(self.tag):
+            raise Exception('Tag <{}> already exists. Clear the tags or choose another name'.format(self.tag))
+
+    def store_tag_job_info(self, job, build_number):
+        self.tagsdb.update_job(self.tag, job, build_number)
+
+    def store_tag_finished(self, finished, tag=None):
+        if tag is None:
+            tag = self.tag
+
+        self.tagsdb.update_state(tag, str(finished))
+
+    def list_tags(self):
+        tags = self.tagsdb.get_tags_list()
+        for tag in tags:
+            print('\t', tag)
+
+    def clear_tags(self):
+        # Update the finished status first
+        self.status(quite=True)
+
+        tags = self.tagsdb.get_tags_list()
+        for tag in tags:
+            finished = self.tagsdb.get_state(tag)
+
+            if finished == "True":
+                print('\t', 'Deleting', tag)
+                self.tagsdb.delete_tag(tag)
+
+    def status(self, quite=False):
+        tags = self.tagsdb.get_tags_list()
+        for tag in sorted(tags):
+            is_building = False
+
+            if not quite:
+                print('\t', tag)
+
+            for (name, build_number) in self.tagsdb.get_jobs_list(tag):
+                job = self.find_job(name)
+                build = job.get_build_by_number(build_number)
+
+                if not build:
+                    print("Can't find", name, ':', build_number)
+                else:
+                    is_building = build.is_building or is_building
+
+                    if build.is_building:
+                        state = 'Running'
+                    else:
+                        state = build.result
+
+                    if not quite:
+                        print('\t\t', '{:<100s}'.format(build.url), '\t', state, '\t', '{}:{}'.format(name, build_number))
+
+            self.store_tag_finished(not is_building, tag)
+            if not quite:
+                print()
+
+    def abort_tag(self, tag):
+        print('\t', 'Aborting <{}>'.format(tag))
+
+        for (name, build_number) in self.tagsdb.get_jobs_list(tag):
+            job = self.find_job(name)
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                if build.is_building:
+                    print('\t\t', 'Aborting <{}>'.format(name))
+                    build.abort()
+            else:
+                print('\t\t', "Can't find {}({})".format(name, build_number))
+
+    def guess_remote(self):
+        self.repo = git.Repo() if self.repo is None else self.repo
+        branch = None
+        remotes = []
+
+        if self.branch is not None:
+            branch = self.branch
+        else:
+            branch = self.repo.active_branch.name
+
+        for remote in self.repo.remotes:
+            # Skip finding the remote if it passed to use
+            if self.remote is not None:
+                if self.remote == remote.name:
+                    # Make sure the specified remote contains the current branch
+                    r = remote.refs[branch]
+                    # If yes, append this remote
+                    remotes.append(remote)
+                    break
+                continue
+
+            try:
+                r = remote.refs[branch]
+                # The following line will only execute if the above expression
+                # didn't throw an exception, which means the remote has a matching
+                # branch to the current one
+                #
+                # We assume that the current branch and the remote branch names
+                # match. If they don't, we must do something more clever to match
+                # the commit hashes, but that's too much work for now.
+                remotes.append(remote)
+            except:
+                continue
+
+        if not remotes:
+            raise Exception('Make sure the current branch was pushed to a remote')
+
+        if len(remotes) > 1:
+            raise Exception('TODO: promote the user to select the correct remote from the matching results')
+
+        for remote in remotes:
+            url = next(remote.urls)
+
+            # We assume one url per-remote..
+            # TODO: raise an exception if this is not true
+
+            # Verify that the user has pushed his local branch
+            try:
+                local_branch = self.repo.branches[branch]
+                remote_branch = remote.refs[branch]
+            except:
+                local_branch = None
+                remote_branch = None
+
+            if self.push_verify and local_branch and local_branch.commit != remote_branch.commit:
+                print('')
+                print('')
+                print(local_branch, local_branch.commit, '!=', remote_branch, remote_branch.commit)
+                print('')
+                print('')
+                raise Exception('Local branch doesn\'t match remote, did you forget to push? Use --no-push-verify to disable the check')
+
+            return (remote.name, url, branch)
+
+    def __guess_base(self, branch):
+        limit = 50      # Assume no one is trying to test more than 50 patches
+        branches = []
+        commits = []
+
+        #
+        # Compile a list of all local and remote branches to find a match
+        #
+        for remote in self.repo.remotes:
+            branches += remote.refs
+
+        for base in self.repo.heads:
+            branches += remote.refs
+
+        #
+        # Compile a list of commits once so we can speed up our search
+        #
+        for base in branches:
+            commits.append(base.commit)
+
+        #
+        # Now try to find which commit is in that list..
+        # There has to be a better way, but I didn't figure it out yet!
+        #
+        for commit in self.repo.iter_commits(rev=branch):
+            if (commit == branch.commit):
+                continue
+
+            if (commit in commits):
+                print('Gussed <', commit, '> as --base')
+                print()
+                return commit
+
+            limit -= 1
+            if not limit:
+                break
+
+        return None
+
+    def guess_base(self):
+        (remote, url, branch) = self.guess_remote()
+        ref = None
+
+        if self.no_base:
+            return ''
+
+        for r in self.repo.remotes:
+            if r.name == remote:
+                ref = self.__guess_base(r.refs[branch])
+                break
+
+        if ref:
+            return ref
+
+        raise Exception("Can't guess the base of the branch to test, please use --base to specify the SHA1 if your base, or --no-base to bypass")
+
+    def find_job(self, test_job):
+        # Handle hierarchal jobs (jobs inside folders)
+        s = test_job.split('/')
+        __server = self.server
+        job = None
+
+        for test_job in s:
+            job = __server.find_job(test_job)
+            __server = job
+
+        return job
+
+    def connect(self):
+        jenkins_url = self.config.get_url()
+        username = self.config.get_username()
+        token = self.config.get_token()
+
+        self.server = jenkins.Jenkins(jenkins_url, (username, token))
+        print('Connected to ', jenkins_url, self.server.version)
+        print()
+
+    def __print_job(self, job, path=None):
+        if path is None:
+            path = job.name
+
+        try:
+            for job in job.jobs:
+                self.__print_job(job, path=path + '/' + job.name)
+        except:
+            print('\t', path)
+
+    def print_jobs(self):
+        view = self.config.get_view()
+        print('List of available jobs:')
+        view = self.server.find_view(view)
+        for job in view.jobs:
+            self.__print_job(job)
+        print()
+
+    def print_console(self, test_job, build_number):
+        job = self.find_job(test_job)
+
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                pydoc.pager(build.console_output)
+                return
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
+    # Store the required info to track the started tests
+    def test_track_jobs(self, job, q):
+        self.tracked_jobs.append([job, q])
+
+    # Wait to ensure that we have build numbers for all started jobs
+    def __test_wait_tracked_jobs(self):
+        print('Collecting tag tracking info...')
+
+        while True:
+            for item in self.tracked_jobs:
+
+                job = item[0]
+                q = item[1]
+
+                if q.waiting:
+                    print(job, ':', q.reason)
+                    continue
+
+                if not q.is_valid:
+                    print('WARNING: Failed to get build number of: ', job)
+                    self.tracked_jobs.remove(item)
+                    continue
+
+                try:
+                    build_number = q.build.number
+                except:
+                    print(job, ':', q.reason)
+                    continue
+
+                if q.build is None:
+                    print('WARNING: Failed to get build number of: ', job)
+                    self.tracked_jobs.remove(item)
+                    continue
+
+                self.store_tag_job_info(job, build_number)
+
+                self.tracked_jobs.remove(item)
+
+            if len(self.tracked_jobs):
+                time.sleep(10)
+            else:
+                break
+
+    def test_wait_tracked_jobs(self):
+        wait = Thread(target=self.__test_wait_tracked_jobs)
+        wait.setDaemon(True)
+        wait.start()
+
+        # Wait until done
+        #
+        # User can interrupt, but after prompted to confirm first.
+        while wait.is_alive():
+            try:
+                wait.join()
+                break
+            except:
+                try:
+                    print("WARNING: Terminating now means partial jobs would be tracked only. Jenkins will still run these jobs.")
+                    print("Terminate(Y/y)?: ", end='')
+                    done = input()
+                    if done.lower() == 'y':
+                        break
+                except:
+                    continue
+
+    def __test_job(self, test_job, remote_url, remote_branch, extra_params={}):
+        job = self.find_job(test_job)
+
+        if not self.tag:
+            self.parse_tag()
+
+        if self.param:
+            for param in self.param:
+                (p, v) = param.split('=', 1)
+                extra_params[p] = v
+
+        if self.base is None:
+            self.base = self.guess_base()
+
+        if job:
+            print('[Building] ', job.name)
+            q = job.start_build(KERNEL_REPO=remote_url, KERNEL_REVISION=remote_branch, KERNEL_REVISION_BASE=self.base, TAG=self.tag, **extra_params)
+            self.test_track_jobs(test_job, q)
+        else:
+            raise Exception("Can't find <{}>".format(test_job))
+
+    def test_job(self, test_job):
+        (remote, url, branch) = self.guess_remote()
+        try:
+            self.__test_job(test_job, url, branch)
+        finally:
+            self.test_wait_tracked_jobs()
+
+    def test_list(self, jobs_list, remote_url, remote_branch):
+        for test_job in jobs_list:
+
+            params = {}
+            try:
+                for param in test_job['params']:
+                    (p, v) = param.split('=', 1)
+                    params[p] = v
+            except:
+                pass
+
+            self.__test_job(test_job['name'], remote_url, remote_branch, params)
+
+    def do_test(self, suite):
+        (remote, url, branch) = self.guess_remote()
+
+        print('Testing <', url, ':', branch, '>')
+        print()
+
+        try:
+            print('Running [', suite, '] test suite..')
+            tests = self.testsdb.get_tests_list(suite)
+            tests = [tests] if isinstance(tests, str) else tests
+            self.test_list(tests, url, branch)
+        finally:
+            self.test_wait_tracked_jobs()
+
+
+###############################################
+#
+# App class handle user command line options
+# and executes what they asked us to do.
+#
+###############################################
+class App:
+    def parse_cmdline(self):
+        parser = argparse.ArgumentParser(description='''
+        MyCI CommandLine Client
+
+        Automatically kick off required test suites to verify a branch on a git tree
+        and generate a report of the result.
+
+        You can define any custom tests for your project in testsdb.
+
+        -T option can be used to run an individual test.\n
+
+        Example:
+
+            myci -r origin -b my-new-cool-feature -t testing-new-cool-feature
+
+            Will trigger the default test suite on the Linux tree in CWD using remote 'origin'
+            and branch 'my-new'cool-feature', uses a tag 'testing-new-cool-feature' to track
+            the result of the test.
+
+            myci -s
+
+            Will print the status of the all the tags.
+        ''', formatter_class=argparse.RawTextHelpFormatter)
+
+        parser.add_argument('-S', '--suite', type=str,
+                        help='The name of the test suite to run as defined in {}/testsdb'.format(CONFIG_PATH))
+        parser.add_argument('-t', '--tag', type=str,
+                        help='The tag to use to identify the test results. Default uses remote/branch-date')
+        parser.add_argument('-r', '--remote', type=str,
+                        help='Specify which remote to use')
+        parser.add_argument('-b', '--branch', type=str,
+                        help='Specify which branch to test')
+        parser.add_argument('--base', type=str,
+                        help='Specify SHA1 of the base of the branch to test')
+        parser.add_argument('--no-base', action='store_true',
+                        help='Don\'t pass base parameter to jobs')
+        parser.add_argument('--no-push-verify', action='store_true',
+                        help='Disable verifying the local branch was pushed')
+        parser.add_argument('-a', '--abort-tag', type=str,
+                        help='Abort all tests started for the specified ABORT_TAG.')
+        parser.add_argument('-C', '--change-directory', type=str,
+                        help='Specify the directory to run the test suite on. By default we operate on CWD')
+        parser.add_argument('-T', '--test', type=str,
+                        help='Run this single test only. Use -p option to get a list of tests.')
+        parser.add_argument('--console', type=str,
+                        help='Print out the console output of the <job:build_number> tuple.')
+        parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
+                        help='Pass extra parameters to the build job.')
+        parser.add_argument('--version-json', action='store_true',
+                        help='Create a JSON file containg version info named version in CWD')
+        parser.add_argument('--update', action='store_true',
+                        help='Update to the latest version and exit')
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('-l', '--list-tags', action='store_true',
+                        help='Print the list of tags that were tested.')
+        group.add_argument('-c', '--clear-tags', action='store_true',
+                        help='Remove the tags that were completed.')
+        group.add_argument('-s', '--status', action='store_true',
+                        help='Print the status of all the tags.')
+        group.add_argument('-p', '--print-jobs', action='store_true',
+                        help='Print list of available jobs in the view and exit')
+
+        try:
+            argcomplete.autocomplete(parser)
+        except:
+            pass
+
+        self.args = parser.parse_args()
+
+    def run(self):
+        #
+        # Setup
+        #
+        self.parse_cmdline()
+        self.myci = MyCI(self.args.tag, self.args.branch,
+                          self.args.base, self.args.remote,
+                          self.args.param, self.args.no_base,
+                          self.args.no_push_verify)
+
+        #
+        # Now, what did the user ask us to do?
+        #
+        if self.args.abort_tag:
+            self.myci.abort_tag(self.args.abort_tag)
+            exit()
+
+        if self.args.console:
+            console = self.args.console.split(':')
+            job = console[0]
+            build_number = int(console[1])
+            self.myci.print_console(job, build_number)
+            exit()
+
+        if self.args.change_directory:
+            os.chdir(self.args.change_directory)
+
+        if self.args.list_tags:
+            self.myci.list_tags()
+            exit()
+
+        if self.args.clear_tags:
+            self.myci.clear_tags()
+            exit()
+
+        if self.args.status:
+            self.myci.status()
+            exit()
+
+        if self.args.print_jobs:
+            self.myci.print_jobs()
+            exit()
+
+        if self.args.version_json:
+            self.myci.version_json()
+            exit()
+
+        if self.args.update:
+            self.myci.update()
+            exit()
+
+
+        #
+        # When triggering 2 tests at the same time, the communication with jenkins
+        # seems to get mangled (possibly a bug in pyjen). To avoid the situation
+        # altogether, prevent more than a single instance to run at the same time on
+        # the same machine.
+        #
+        fp = open(LOCK_FILE, 'w')
+        try:
+            fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            raise Exception("Another instance is running, trigger one test at a time")
+
+
+        if self.args.test:
+            self.myci.test_job(self.args.test)
+            exit()
+
+        #
+        # Start the requested tests
+        #
+        if self.args.suite:
+            self.myci.do_test(self.args.suite)
+        else:
+            for suite in self.testsdb.suites():
+                self.myci.do_test(suite)
+
+
+###############################################
+#
+#          ## APP START HERE ###
+#
+###############################################
+app = App()
+app.run()

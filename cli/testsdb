@@ -1,0 +1,8 @@
+{
+	"jhealthcheck" :
+	[
+		{
+			"name" : "Jenkins Healthcheck"
+		}
+	]
+}
