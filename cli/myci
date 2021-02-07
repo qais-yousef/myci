@@ -131,6 +131,9 @@ class Config:
     def get_email(self):
         return self.config.get('user', 'email')
 
+    def get_url_length(self):
+        return self.config.get('settings', 'url_length')
+
     # Private functions
     def read_username(self):
         print('Jenkins username: ')
@@ -189,6 +192,10 @@ class Config:
                 self.read_url()
             if not self.config.has_option('jenkins', 'view'):
                 self.config.set('jenkins', 'view', DEFAULT_VIEW)
+
+        if not self.config.has_section('settings'):
+            self.config.add_section('settings')
+            self.config.set('settings', 'url_length', '{}'.format(50))
 
         with open(CONFIG_FILE, 'w') as config_file:
             self.config.write(config_file)
@@ -404,7 +411,8 @@ class MyCI:
                         state = build.result
 
                     if not quite:
-                        print('\t\t', '{:<100s}'.format(build.url), '\t', state, '\t', '{}:{}'.format(name, build_number))
+                        print('\t\t', '{url:<{length}s}'.format(url=build.url, length=self.config.get_url_length()),
+                              '\t', state, '\t', '{}:{}'.format(name, build_number))
 
             self.store_tag_finished(not is_building, tag)
             if not quite:
