@@ -5,7 +5,7 @@
 # Options
 
 `pip3 install argcomplete`
-`activate-global-python-argcomplete3`
+`activate-global-python-argcomplete --user`
 `complete -r myci`
 
 # User Guide
