@@ -7,7 +7,6 @@
 
 import argparse
 import configparser
-import git
 import pyjen.plugins.folderjob as FolderJob
 import pyjen.jenkins as jenkins
 import os
@@ -320,16 +319,10 @@ class TagsDB:
 #
 ###############################################
 class MyCI:
-    def __init__(self, tag, branch, base, remote, param, no_base, no_push_verify):
+    def __init__(self, tag, param):
         self.tracked_jobs = []
         self.tag = tag
-        self.branch = branch
-        self.base = base
-        self.remote = remote
         self.param = param
-        self.no_base = no_base
-        self.push_verify = not no_push_verify
-        self.repo = None
 
         self.version = Version()
         self.config = Config()
@@ -345,20 +338,15 @@ class MyCI:
         self.version.update()
 
     def parse_tag(self):
-        if self.tag is None:
-            (remote, url, branch) = self.guess_remote()
+        s = self.tag
 
-            self.tag = remote + '-' + branch + '-' + time.strftime('%Y%m%d-%H%M%S')
-        else:
-            s = self.tag
+        # Remove all non-word characters (everything except numbers and letters)
+        s = re.sub(r"[^\w\s]", '', s)
 
-            # Remove all non-word characters (everything except numbers and letters)
-            s = re.sub(r"[^\w\s]", '', s)
+        # Replace all runs of whitespace with a single dash
+        s = re.sub(r"\s+", '_', s)
 
-            # Replace all runs of whitespace with a single dash
-            s = re.sub(r"\s+", '_', s)
-
-            self.tag = s
+        self.tag = s
 
     def verify_tag(self):
         if self.tag is None:
@@ -435,126 +423,6 @@ class MyCI:
                     build.abort()
             else:
                 print('\t\t', "Can't find {}({})".format(name, build_number))
-
-    def guess_remote(self):
-        self.repo = git.Repo() if self.repo is None else self.repo
-        branch = None
-        remotes = []
-
-        if self.branch is not None:
-            branch = self.branch
-        else:
-            branch = self.repo.active_branch.name
-
-        for remote in self.repo.remotes:
-            # Skip finding the remote if it passed to use
-            if self.remote is not None:
-                if self.remote == remote.name:
-                    # Make sure the specified remote contains the current branch
-                    r = remote.refs[branch]
-                    # If yes, append this remote
-                    remotes.append(remote)
-                    break
-                continue
-
-            try:
-                r = remote.refs[branch]
-                # The following line will only execute if the above expression
-                # didn't throw an exception, which means the remote has a matching
-                # branch to the current one
-                #
-                # We assume that the current branch and the remote branch names
-                # match. If they don't, we must do something more clever to match
-                # the commit hashes, but that's too much work for now.
-                remotes.append(remote)
-            except:
-                continue
-
-        if not remotes:
-            raise Exception('Make sure the current branch was pushed to a remote')
-
-        if len(remotes) > 1:
-            raise Exception('TODO: promote the user to select the correct remote from the matching results')
-
-        for remote in remotes:
-            url = next(remote.urls)
-
-            # We assume one url per-remote..
-            # TODO: raise an exception if this is not true
-
-            # Verify that the user has pushed his local branch
-            try:
-                local_branch = self.repo.branches[branch]
-                remote_branch = remote.refs[branch]
-            except:
-                local_branch = None
-                remote_branch = None
-
-            if self.push_verify and local_branch and local_branch.commit != remote_branch.commit:
-                print('')
-                print('')
-                print(local_branch, local_branch.commit, '!=', remote_branch, remote_branch.commit)
-                print('')
-                print('')
-                raise Exception('Local branch doesn\'t match remote, did you forget to push? Use --no-push-verify to disable the check')
-
-            return (remote.name, url, branch)
-
-    def __guess_base(self, branch):
-        limit = 50      # Assume no one is trying to test more than 50 patches
-        branches = []
-        commits = []
-
-        #
-        # Compile a list of all local and remote branches to find a match
-        #
-        for remote in self.repo.remotes:
-            branches += remote.refs
-
-        for base in self.repo.heads:
-            branches += remote.refs
-
-        #
-        # Compile a list of commits once so we can speed up our search
-        #
-        for base in branches:
-            commits.append(base.commit)
-
-        #
-        # Now try to find which commit is in that list..
-        # There has to be a better way, but I didn't figure it out yet!
-        #
-        for commit in self.repo.iter_commits(rev=branch):
-            if (commit == branch.commit):
-                continue
-
-            if (commit in commits):
-                print('Gussed <', commit, '> as --base')
-                print()
-                return commit
-
-            limit -= 1
-            if not limit:
-                break
-
-        return None
-
-    def guess_base(self):
-        (remote, url, branch) = self.guess_remote()
-        ref = None
-
-        if self.no_base:
-            return ''
-
-        for r in self.repo.remotes:
-            if r.name == remote:
-                ref = self.__guess_base(r.refs[branch])
-                break
-
-        if ref:
-            return ref
-
-        raise Exception("Can't guess the base of the branch to test, please use --base to specify the SHA1 if your base, or --no-base to bypass")
 
     def find_job(self, test_job):
         # Handle hierarchal jobs (jobs inside folders)
@@ -672,7 +540,7 @@ class MyCI:
                 except:
                     continue
 
-    def __test_job(self, test_job, remote_url, remote_branch, extra_params={}):
+    def __test_job(self, test_job, extra_params={}):
         job = self.find_job(test_job)
 
         if not self.tag:
@@ -683,24 +551,20 @@ class MyCI:
                 (p, v) = param.split('=', 1)
                 extra_params[p] = v
 
-        if self.base is None:
-            self.base = self.guess_base()
-
         if job:
             print('[Building] ', job.name)
-            q = job.start_build(KERNEL_REPO=remote_url, KERNEL_REVISION=remote_branch, KERNEL_REVISION_BASE=self.base, TAG=self.tag, **extra_params)
+            q = job.start_build(**extra_params)
             self.test_track_jobs(test_job, q)
         else:
             raise Exception("Can't find <{}>".format(test_job))
 
     def test_job(self, test_job):
-        (remote, url, branch) = self.guess_remote()
         try:
-            self.__test_job(test_job, url, branch)
+            self.__test_job(test_job)
         finally:
             self.test_wait_tracked_jobs()
 
-    def test_list(self, jobs_list, remote_url, remote_branch):
+    def test_list(self, jobs_list):
         for test_job in jobs_list:
 
             params = {}
@@ -711,19 +575,14 @@ class MyCI:
             except:
                 pass
 
-            self.__test_job(test_job['name'], remote_url, remote_branch, params)
+            self.__test_job(test_job['name'], params)
 
     def do_test(self, suite):
-        (remote, url, branch) = self.guess_remote()
-
-        print('Testing <', url, ':', branch, '>')
-        print()
-
         try:
             print('Running [', suite, '] test suite..')
             tests = self.testsdb.get_tests_list(suite)
             tests = [tests] if isinstance(tests, str) else tests
-            self.test_list(tests, url, branch)
+            self.test_list(tests)
         finally:
             self.test_wait_tracked_jobs()
 
@@ -739,21 +598,19 @@ class App:
         parser = argparse.ArgumentParser(description='''
         MyCI CommandLine Client
 
-        Automatically kick off required test suites to verify a branch on a git tree
-        and generate a report of the result.
+        Automatically kick off a test suite of a set of jobs on Jenkins.
 
-        You can define any custom tests for your project in testsdb.
+        You can define any custom test suites for your project in ~/.myci/testsdb.
 
-        -T option can be used to run an individual test.\n
+        Usage:
 
-        Example:
+            # Run jhealthcheck suite as defined in ~/.myci/testsdb
+            myci -S jhealthcheck -t hello-world
 
-            myci -r origin -b my-new-cool-feature -t testing-new-cool-feature
+            # Run run Jenkins Healthcheck job
+            myci -T "Jenkins Healthcheck" -t quick-run
 
-            Will trigger the default test suite on the Linux tree in CWD using remote 'origin'
-            and branch 'my-new'cool-feature', uses a tag 'testing-new-cool-feature' to track
-            the result of the test.
-
+            # Show status of kicked jobs
             myci -s
 
             Will print the status of the all the tags.
@@ -762,21 +619,9 @@ class App:
         parser.add_argument('-S', '--suite', type=str,
                         help='The name of the test suite to run as defined in {}/testsdb'.format(CONFIG_PATH))
         parser.add_argument('-t', '--tag', type=str,
-                        help='The tag to use to identify the test results. Default uses remote/branch-date')
-        parser.add_argument('-r', '--remote', type=str,
-                        help='Specify which remote to use')
-        parser.add_argument('-b', '--branch', type=str,
-                        help='Specify which branch to test')
-        parser.add_argument('--base', type=str,
-                        help='Specify SHA1 of the base of the branch to test')
-        parser.add_argument('--no-base', action='store_true',
-                        help='Don\'t pass base parameter to jobs')
-        parser.add_argument('--no-push-verify', action='store_true',
-                        help='Disable verifying the local branch was pushed')
+                        help='The tag to use to identify the test results. Default uses suite|job-date')
         parser.add_argument('-a', '--abort-tag', type=str,
                         help='Abort all tests started for the specified ABORT_TAG.')
-        parser.add_argument('-C', '--change-directory', type=str,
-                        help='Specify the directory to run the test suite on. By default we operate on CWD')
         parser.add_argument('-T', '--test', type=str,
                         help='Run this single test only. Use -p option to get a list of tests.')
         parser.add_argument('--console', type=str,
@@ -810,10 +655,13 @@ class App:
         # Setup
         #
         self.parse_cmdline()
-        self.myci = MyCI(self.args.tag, self.args.branch,
-                          self.args.base, self.args.remote,
-                          self.args.param, self.args.no_base,
-                          self.args.no_push_verify)
+
+        # Create a tag if none is passed
+        if self.args.tag is None:
+            if self.args.suite or self.args.test:
+                self.args.tag = self.args.suite if self.args.suite else self.args.test + '-' + time.strftime('%Y%m%d-%H%M%S')
+
+        self.myci = MyCI(self.args.tag, self.args.param)
 
         #
         # Now, what did the user ask us to do?
@@ -828,9 +676,6 @@ class App:
             build_number = int(console[1])
             self.myci.print_console(job, build_number)
             exit()
-
-        if self.args.change_directory:
-            os.chdir(self.args.change_directory)
 
         if self.args.list_tags:
             self.myci.list_tags()

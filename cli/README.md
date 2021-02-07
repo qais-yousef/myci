@@ -1,7 +1,6 @@
 # Requirements
 
 `pip3 install pyjen`
-`pip3 install gitpython`
 
 # Options
 
