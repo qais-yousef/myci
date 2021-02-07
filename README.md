@@ -34,6 +34,15 @@ Download jenkin images and sets up networking and volumes.
 
 `./setup_jenkins.sh`
 
+## Fix jenkins_home permissions
+
+If uid and gid of jenkins user in docker image are different from the host
+user, we will get permission errors when trying to share jenkins_home as
+a volume. To fix it, we modify the uid/gid of jenkins user in docker to match
+the host user.
+
+`./fix_permissions.sh`
+
 ## Start Jenkins
 
 `./start_jenkins.sh`
