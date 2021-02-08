@@ -17,6 +17,15 @@ import json
 import fcntl
 import requests
 import pydoc
+import readline
+
+# Helpful to debug connection issues
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+
+# Allow tab completion when giving input
+readline.set_completer_delims(' \t\n=')
+readline.parse_and_bind("tab:complete")
 
 try:
     import argcomplete
@@ -122,6 +131,9 @@ class Config:
     def get_view(self):
         return self.config.get('jenkins', 'view')
 
+    def get_ssl_ca(self):
+        return self.config.get('jenkins', 'ssl_ca')
+
     def get_username(self):
         return self.config.get('user', 'username')
 
@@ -157,6 +169,21 @@ class Config:
         if url:
             self.config.set('jenkins', 'url', url)
 
+    def read_ssl_ca(self):
+        found = False
+
+        while not found:
+            print('Jenkins ssl certificate: ')
+            ssl_ca = input()
+            ssl_ca = os.path.expanduser(ssl_ca)
+            ssl_ca = os.path.abspath(ssl_ca)
+
+            if os.path.exists(ssl_ca):
+                self.config.set('jenkins', 'ssl_ca', ssl_ca)
+                found = True
+            else:
+                print("{} doesn't exist.".format(ssl_ca))
+
     # Initialize everything
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -185,11 +212,15 @@ class Config:
             self.config.add_section('jenkins')
             print('No jenkins configuration found')
             self.read_url()
+            self.read_ssl_ca()
             self.config.set('jenkins', 'view', DEFAULT_VIEW)
         else:
             if not self.config.has_option('jenkins', 'url'):
                 print('Missing jenkins url')
                 self.read_url()
+            if not self.config.has_option('jenkins', 'ssl_ca'):
+                print('Missing jenkins ssl certificate')
+                self.read_ssl_ca()
             if not self.config.has_option('jenkins', 'view'):
                 self.config.set('jenkins', 'view', DEFAULT_VIEW)
 
@@ -448,6 +479,9 @@ class MyCI:
         jenkins_url = self.config.get_url()
         username = self.config.get_username()
         token = self.config.get_token()
+
+        # Set REQUESTS_CA_BUNDLE to allow https connection to the server
+        os.environ["REQUESTS_CA_BUNDLE"] = self.config.get_ssl_ca()
 
         self.server = jenkins.Jenkins(jenkins_url, (username, token))
         print('Connected to ', jenkins_url, self.server.version)
