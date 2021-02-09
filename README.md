@@ -30,9 +30,17 @@ chmod +x rootless
 
 ## Jenkins setup
 
-Download jenkin images and sets up networking and volumes.
+Download jenkin images and sets up networking, volumes and SSL certificates.
 
-`./setup_jenkins.sh`
+`./setup_jenkins.sh dns:$SERVER_DNS_NAME`
+
+or
+
+`./setup_jenkins.sh ip:$SERVER_IP_ADDRESS`
+
+Where replace $SERVER_DNS_NAME/$SERVER_IP_ADDRESS with your real values. This
+is required to avoid python generating an error when talking to the server via
+myci cli due to a missing subjectAltName in the certificate.
 
 ## Fix jenkins_home permissions
 
@@ -55,7 +63,7 @@ Install all necessary tools to build the kernel and run Lisa.
 
 ## Access Jenkins
 
-`firefox localhost:8080`
+`firefox https://localhost:8443`
 
 ## username/pass
 
