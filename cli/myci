@@ -701,7 +701,8 @@ class App:
         # Create a tag if none is passed
         if self.args.tag is None:
             if self.args.suite or self.args.test:
-                self.args.tag = self.args.suite if self.args.suite else self.args.test + '-' + time.strftime('%Y%m%d-%H%M%S')
+                self.args.tag = self.args.suite if self.args.suite else self.args.test
+                self.args.tag += '-' + time.strftime('%Y%m%d-%H%M%S')
 
         self.myci = MyCI(self.args.tag, self.args.param)
 
