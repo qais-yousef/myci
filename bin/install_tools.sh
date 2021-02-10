@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eux
 
+docker run --rm --detach --name jenkins jenkins/jenkins:lts
+trap "docker stop jenkins" EXIT
 docker exec --user root jenkins apt update
 docker exec --user root jenkins apt upgrade -y
 

@@ -1,6 +1,8 @@
 #!/bin/sh
 set -x
 
+SCRIPTS_PATH="$(realpath $(dirname $0))"
+
 # Get latest jenkins LTS
 docker pull jenkins/jenkins:lts
 
@@ -31,16 +33,25 @@ else
 	san=""
 fi
 
-keytool -genkey -keyalg RSA -alias selfsigned \
-	-keystore $KEY_FILE \
-	-storepass $(cat $KEY_PASS_FILE) \
-	$san \
-	-keysize 4096
+if [ ! -e $KEY_FILE ]; then
+	keytool -genkey -keyalg RSA -alias selfsigned \
+		-keystore $KEY_FILE \
+		-storepass $(cat $KEY_PASS_FILE) \
+		$san \
+		-keysize 4096
+fi
 
-yes $(cat $KEY_PASS_FILE) | \
-	keytool -importkeystore -srckeystore $KEY_FILE \
-       -destkeystore $PKCS12_FILE \
-       -srcstoretype jks \
-       -deststoretype pkcs12
+if [ ! -e $PKCS12_FILE ]; then
+	yes $(cat $KEY_PASS_FILE) | \
+		keytool -importkeystore -srckeystore $KEY_FILE \
+	       -destkeystore $PKCS12_FILE \
+	       -srcstoretype jks \
+	       -deststoretype pkcs12
+fi
 
-openssl pkcs12 -in $PKCS12_FILE -out $PEM_FILE -passin "pass:$(cat $KEY_PASS_FILE)" -passout "pass:$(cat $KEY_PASS_FILE)"
+if [ ! -e $PEM_FILE ]; then
+	openssl pkcs12 -in $PKCS12_FILE -out $PEM_FILE -passin "pass:$(cat $KEY_PASS_FILE)" -passout "pass:$(cat $KEY_PASS_FILE)"
+fi
+
+"$SCRIPTS_PATH"/bin/fix_permissions.sh
+"$SCRIPTS_PATH"/bin/install_tools.sh
