@@ -5,6 +5,11 @@ This project is still Work In Progress
 # Pre-requisites
 
 `sudo apt install docker.io`
+`sudo apt install openjdk-14-jre-headless`
+`sudo apt install openssl`
+
+We need keytool from openjdk-14-jre-headless. The exact version shouldn't
+matter. 14 was the latest at the time of writing.
 
 # Setup rootless docker
 
@@ -18,7 +23,7 @@ for it that has minimum privileges.
 ```
 sudo adduser jenkins
 sudo apt install uidmap
-su jenkins
+ssh jenkins@localhost
 wget https://get.docker.com/rootless
 chmod +x rootless
 ./rootless
@@ -42,24 +47,9 @@ Where replace $SERVER_DNS_NAME/$SERVER_IP_ADDRESS with your real values. This
 is required to avoid python generating an error when talking to the server via
 myci cli due to a missing subjectAltName in the certificate.
 
-## Fix jenkins_home permissions
-
-If uid and gid of jenkins user in docker image are different from the host
-user, we will get permission errors when trying to share jenkins_home as
-a volume. To fix it, we modify the uid/gid of jenkins user in docker to match
-the host user.
-
-`./fix_permissions.sh`
-
 ## Start Jenkins
 
 `./start_jenkins.sh`
-
-## Install required tools
-
-Install all necessary tools to build the kernel and run Lisa.
-
-`./install_tools.sh`
 
 ## Access Jenkins
 
