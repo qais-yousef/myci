@@ -12,9 +12,6 @@ docker network create jenkins
 # Create volume for TLS certificates
 docker volume create jenkins-docker-certs
 
-# Create volume jenkins_home
-#docker volume create jenkins-home
-
 # Generate a selfsigned certificate for https
 KEY_PASS_FILE=jenkins_keystore.pass
 KEY_FILE=jenkins_home/jenkins_keystore.jks
@@ -53,5 +50,4 @@ if [ ! -e $PEM_FILE ]; then
 	openssl pkcs12 -in $PKCS12_FILE -out $PEM_FILE -passin "pass:$(cat $KEY_PASS_FILE)" -passout "pass:$(cat $KEY_PASS_FILE)"
 fi
 
-"$SCRIPTS_PATH"/bin/fix_permissions.sh
 "$SCRIPTS_PATH"/bin/install_tools.sh

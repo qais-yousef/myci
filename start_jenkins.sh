@@ -5,6 +5,7 @@ JENKINS_HOME="`realpath $(dirname $0)`"/jenkins_home
 
 docker run \
   --name jenkins \
+  -u $(id -u) \
   --rm \
   --detach \
   --network jenkins \
