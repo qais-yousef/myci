@@ -649,8 +649,8 @@ class App:
             # Run jhealthcheck suite as defined in ~/.myci/testsdb
             myci -S jhealthcheck -t hello-world
 
-            # Run run Jenkins Healthcheck job
-            myci -T "Jenkins Healthcheck" -t quick-run
+            # Run run Jenkins-Healthcheck job
+            myci -T "Jenkins-Healthcheck" -t quick-run
 
             # Show status of kicked jobs
             myci -s

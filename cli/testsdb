@@ -2,7 +2,7 @@
 	"jhealthcheck" :
 	[
 		{
-			"name" : "Jenkins Healthcheck"
+			"name" : "Jenkins-Healthcheck"
 		}
 	]
 }

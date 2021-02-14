@@ -116,7 +116,7 @@ Click `Save` button to save and exit.
 You're all ready now!
 
 If you installed `Blue Ocean`, select `Open Blue Ocean` in the left hand side
-menu. Then select `Jenkins Healthcheck` job to test your setup. Hit `Run` when
+menu. Then select `Jenkins-Healthcheck` job to test your setup. Hit `Run` when
 prompted.
 
 # Start/Stop Jenkins
