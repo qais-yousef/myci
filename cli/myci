@@ -497,23 +497,25 @@ class MyCI:
             print('Connected to ', jenkins_url, self.server.version)
             print()
 
-    def __list_job(self, job, path=None):
+    def __list_jobs(self, job, path=None):
         if path is None:
             path = job.name
 
+        jobs = []
         try:
             for job in job.jobs:
-                path = self.__list_job(job, path=path + '/' + job.name)
+                jobs.extend(self.__list_jobs(job, path=path + '/' + job.name))
         except:
             pass
-        return path
+
+        return [path] if not jobs else jobs
 
     def list_jobs(self):
         view = self.config.get_view()
         view = self.server.find_view(view)
         jobs = []
         for job in view.jobs:
-            jobs.append(self.__list_job(job))
+            jobs.extend(self.__list_jobs(job))
         return jobs
 
     def print_jobs(self):
