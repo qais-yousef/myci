@@ -657,7 +657,6 @@ class App:
     def parse_cmdline(self):
         tagsdb = TagsDB()
         testsdb = TestsDB()
-        myci = MyCI(silent=True)
         parser = argparse.ArgumentParser(description='''
         MyCI CommandLine Client
 
@@ -679,14 +678,17 @@ class App:
             Will print the status of the all the tags.
         ''', formatter_class=argparse.RawTextHelpFormatter)
 
+        def list_jobs(**kwargs):
+            return MyCI(silent=True).list_jobs()
+
         parser.add_argument('-S', '--suite', type=str, choices=testsdb.suites(),
                         help='The name of the test suite to run as defined in {}/testsdb'.format(CONFIG_PATH))
         parser.add_argument('-t', '--tag', type=str,
                         help='The tag to use to identify the test results. Default uses suite|job-date')
         parser.add_argument('-a', '--abort-tag', type=str, choices=tagsdb.get_tags_list(),
                         help='Abort all tests started for the specified ABORT_TAG.')
-        parser.add_argument('-T', '--test', type=str, choices=myci.list_jobs(),
-                        help='Run this single test only. Use -p option to get a list of tests.')
+        parser.add_argument('-T', '--test', type=str,
+                        help='Run this single test only. Use -p option to get a list of tests.').completer = list_jobs
         parser.add_argument('--console', type=str, choices=tagsdb.get_console_list(),
                         help='Print out the console output of the <job:build_number> tuple.')
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
