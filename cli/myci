@@ -337,6 +337,13 @@ class TagsDB:
 
         return self.db[tag]['jobs'].items()
 
+    def get_console_list(self):
+        jobs = []
+        for tag in self.get_tags_list():
+            for (job, buildnumber) in self.db[tag]['jobs'].items():
+                jobs.append("{}:{}".format(job, buildnumber))
+        return jobs
+
     def delete_tag(self, tag):
         if not self.exists(tag):
             raise Exception("Tag <{}> doesn't exists!".format(self.tag))
@@ -637,6 +644,8 @@ class MyCI:
 ###############################################
 class App:
     def parse_cmdline(self):
+        tagsdb = TagsDB()
+        testsdb = TestsDB()
         parser = argparse.ArgumentParser(description='''
         MyCI CommandLine Client
 
@@ -658,15 +667,15 @@ class App:
             Will print the status of the all the tags.
         ''', formatter_class=argparse.RawTextHelpFormatter)
 
-        parser.add_argument('-S', '--suite', type=str,
+        parser.add_argument('-S', '--suite', type=str, choices=testsdb.suites(),
                         help='The name of the test suite to run as defined in {}/testsdb'.format(CONFIG_PATH))
         parser.add_argument('-t', '--tag', type=str,
                         help='The tag to use to identify the test results. Default uses suite|job-date')
-        parser.add_argument('-a', '--abort-tag', type=str,
+        parser.add_argument('-a', '--abort-tag', type=str, choices=tagsdb.get_tags_list(),
                         help='Abort all tests started for the specified ABORT_TAG.')
         parser.add_argument('-T', '--test', type=str,
                         help='Run this single test only. Use -p option to get a list of tests.')
-        parser.add_argument('--console', type=str,
+        parser.add_argument('--console', type=str, choices=tagsdb.get_console_list(),
                         help='Print out the console output of the <job:build_number> tuple.')
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
                         help='Pass extra parameters to the build job.')
