@@ -69,14 +69,15 @@ DEFAULT_VIEW='all'
 #
 ###############################################
 class Version:
-    def __init__(self):
+    def __init__(self, silent=False):
         self.major = 0
         self.minor = 4
         self.rc = '-beta'
 
         self.version = '{}.{}{}'.format(self.major, self.minor, self.rc)
 
-        self.print_version()
+        if not silent:
+            self.print_version()
         #self.check_new_version()
 
     def print_version(self):
@@ -364,12 +365,13 @@ class TagsDB:
 #
 ###############################################
 class MyCI:
-    def __init__(self, tag, param):
+    def __init__(self, tag=None, param=None, silent=False):
         self.tracked_jobs = []
         self.tag = tag
         self.param = param
+        self.silent = silent
 
-        self.version = Version()
+        self.version = Version(silent=silent)
         self.config = Config()
         self.tagsdb = TagsDB()
         self.testsdb = TestsDB()
@@ -491,25 +493,34 @@ class MyCI:
         os.environ["REQUESTS_CA_BUNDLE"] = self.config.get_ssl_ca()
 
         self.server = jenkins.Jenkins(jenkins_url, (username, token))
-        print('Connected to ', jenkins_url, self.server.version)
-        print()
+        if not self.silent:
+            print('Connected to ', jenkins_url, self.server.version)
+            print()
 
-    def __print_job(self, job, path=None):
+    def __list_job(self, job, path=None):
         if path is None:
             path = job.name
 
         try:
             for job in job.jobs:
-                self.__print_job(job, path=path + '/' + job.name)
+                path = self.__list_job(job, path=path + '/' + job.name)
         except:
-            print('\t', path)
+            pass
+        return path
+
+    def list_jobs(self):
+        view = self.config.get_view()
+        view = self.server.find_view(view)
+        jobs = []
+        for job in view.jobs:
+            jobs.append(self.__list_job(job))
+        return jobs
 
     def print_jobs(self):
         view = self.config.get_view()
         print('List of available jobs:')
-        view = self.server.find_view(view)
-        for job in view.jobs:
-            self.__print_job(job)
+        for job in self.list_jobs():
+            print('\t', job)
         print()
 
     def print_console(self, test_job, build_number):
@@ -646,6 +657,7 @@ class App:
     def parse_cmdline(self):
         tagsdb = TagsDB()
         testsdb = TestsDB()
+        myci = MyCI(silent=True)
         parser = argparse.ArgumentParser(description='''
         MyCI CommandLine Client
 
@@ -673,7 +685,7 @@ class App:
                         help='The tag to use to identify the test results. Default uses suite|job-date')
         parser.add_argument('-a', '--abort-tag', type=str, choices=tagsdb.get_tags_list(),
                         help='Abort all tests started for the specified ABORT_TAG.')
-        parser.add_argument('-T', '--test', type=str,
+        parser.add_argument('-T', '--test', type=str, choices=myci.list_jobs(),
                         help='Run this single test only. Use -p option to get a list of tests.')
         parser.add_argument('--console', type=str, choices=tagsdb.get_console_list(),
                         help='Print out the console output of the <job:build_number> tuple.')
