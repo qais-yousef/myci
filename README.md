@@ -18,12 +18,18 @@ for it that has minimum privileges.
 
 	https://docs.docker.com/engine/security/rootless/
 
+## Jenkins User
+
+It'd be safer to create a special Jenkins user to run your server. In case
+there's a security problem in Jenkins that allows external actor to gain access
+to your system, then Jenkins user will limit their accessibility.
+
+`sudo adduser jenkins`
+
 ## Quick Guide
 
 ```
-sudo adduser jenkins
 sudo apt install uidmap
-ssh jenkins@localhost
 wget https://get.docker.com/rootless
 chmod +x rootless
 ./rootless
@@ -46,6 +52,8 @@ or
 Where replace $SERVER_DNS_NAME/$SERVER_IP_ADDRESS with your real values. This
 is required to avoid python generating an error when talking to the server via
 myci cli due to a missing subjectAltName in the certificate.
+
+If you're accessing the server via localhost then use that as SERVER_DNS_NAME.
 
 ## Start Jenkins
 
