@@ -428,6 +428,10 @@ class MyCI:
                 print('\t', 'Deleting', tag)
                 self.tagsdb.delete_tag(tag)
 
+    def print_build_info(self, url, result, name, build_number):
+        print('\t\t', '{url:<{length}s}'.format(url=url, length=self.config.get_url_length()),
+              '\t', result if result else 'Running', '\t', '{}:{}'.format(name, build_number))
+
     def status(self, quite=False):
         tags = self.tagsdb.get_tags_list()
         for tag in sorted(tags):
@@ -445,14 +449,8 @@ class MyCI:
                 else:
                     is_building = build.is_building or is_building
 
-                    if build.is_building:
-                        state = 'Running'
-                    else:
-                        state = build.result
-
                     if not quite:
-                        print('\t\t', '{url:<{length}s}'.format(url=build.url, length=self.config.get_url_length()),
-                              '\t', state, '\t', '{}:{}'.format(name, build_number))
+                        self.print_build_info(build.url, build.result, name, build_number)
 
             self.store_tag_finished(not is_building, tag)
             if not quite:
@@ -536,6 +534,23 @@ class MyCI:
                 return
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
+
+    def list_builds(self, test_job):
+        job = self.find_job(test_job)
+
+        if (job):
+            builds = job.all_builds
+            limit = 20
+
+            if builds:
+                for index, build in enumerate(builds):
+                    if index == limit:
+                        break
+                    self.print_build_info(build.url, build.result, test_job, build.number)
+
+            return
+
+        raise Exception("Can't find {}".format(test_job))
 
     # Store the required info to track the started tests
     def test_track_jobs(self, job, q):
@@ -702,6 +717,8 @@ class App:
                         help='Run this single test only. Use -p option to get a list of tests.').completer = list_jobs
         parser.add_argument('--console', type=str,
                         help='Print out the console output of the <job:build_number> tuple.').completer = console_list
+        parser.add_argument('-b', '--builds', type=str,
+                        help='Print out the status of the last 20 builds of a job.').completer = list_jobs
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
                         help='Pass extra parameters to the build job.')
         parser.add_argument('--version-json', action='store_true',
@@ -752,6 +769,10 @@ class App:
             job = console[0]
             build_number = int(console[1])
             self.myci.print_console(job, build_number)
+            exit()
+
+        if self.args.builds:
+            self.myci.list_builds(self.args.builds)
             exit()
 
         if self.args.list_tags:
