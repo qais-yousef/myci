@@ -429,7 +429,11 @@ class MyCI:
                 self.tagsdb.delete_tag(tag)
 
     def print_build_info(self, url, result, name, build_number):
-        print('\t\t', '{url:<{length}s}'.format(url=url, length=self.config.get_url_length()),
+        conf_url_len = int(self.config.get_url_length())
+        url_len = len(url)
+        if url_len > conf_url_len:
+            url=url[url_len-conf_url_len:]
+        print('\t\t', '{url:<{length}s}'.format(url=url, length=conf_url_len),
               '\t', result if result else 'Running', '\t', '{}:{}'.format(name, build_number))
 
     def status(self, quite=False):
