@@ -43,6 +43,7 @@ CONFIG_FILE=os.path.join(CONFIG_PATH, 'config')
 
 TAGS_DB=os.path.join(CONFIG_PATH, 'tagsdb')
 TESTS_DB=os.path.join(CONFIG_PATH, 'testsdb')
+BUILDS_DB=os.path.join(CONFIG_PATH, 'buildsdb')
 
 DOWNLOAD_LINK=''
 VERSION_LINK=''
@@ -354,6 +355,60 @@ class TagsDB:
         with open(TAGS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
 
+
+###############################################
+#
+# BuildsDB manages talking to the builds/jobs
+# database
+#
+# The DB is a simple json file. But we can use
+# something more sophisticated if we need later
+#
+###############################################
+class BuildsDB:
+    def __init__(self, timeout=60):
+        # Load the Json file, if not empty
+        if os.path.exists(BUILDS_DB) and os.path.getsize(BUILDS_DB):
+            with open(BUILDS_DB) as fd:
+                self.db = json.load(fd)
+                ts1 = self.db['timestamp']
+                ts2 = time.time()
+                if ts2 - ts1 > timeout:
+                    self.regenerate()
+        else:
+            self.regenerate()
+
+    def regenerate(self):
+        myci = MyCI(silent=True)
+        self.db = {}
+        self.db['jobs'] = []
+
+        for name in myci.list_jobs():
+            self.db['jobs'].append(name)
+
+            job = myci.find_job(name)
+            self.db[name] = []
+            for build in job.all_builds:
+                d = {
+                        'url' : build.url,
+                        'result' : build.result if build.result else 'Running',
+                        'console' : "{}:{}".format(name, build.number)
+                }
+                self.db[name].append(d)
+
+        self.db['timestamp'] = time.time()
+        with open(BUILDS_DB, 'w') as fd:
+            json.dump(self.db, fd, indent=4)
+
+    def get_jobs_list(self):
+        return self.db['jobs']
+
+    def get_console_list(self):
+        jobs = []
+        for job in self.db['jobs']:
+            for build in self.db[job]:
+                jobs.append(build['console'])
+        return jobs
 
 
 ###############################################
@@ -706,10 +761,10 @@ class App:
             return tagsdb.get_tags_list()
 
         def list_jobs(**kwargs):
-            return MyCI(silent=True).list_jobs()
+            return BuildsDB().get_jobs_list()
 
         def console_list(**kwargs):
-            return tagsdb.get_console_list()
+            return BuildsDB().get_console_list()
 
         parser.add_argument('-S', '--suite', type=str,
                         help='The name of the test suite to run as defined in {}/testsdb'.format(CONFIG_PATH)).completer = list_suites
