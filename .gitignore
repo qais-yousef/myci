@@ -3,5 +3,4 @@ jenkins_home/jobs/*/builds/*
 jenkins_home/jobs/*/workspace*/*
 jenkins_home/jobs/*/nextBuildNumber
 !jenkins_home/jobs
-jenkins_cert.p*
-jenkins_keystore.pass
+certs/
