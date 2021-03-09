@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -x
 
 docker volume rm myci-jenkins-home
 docker volume create myci-jenkins-home
