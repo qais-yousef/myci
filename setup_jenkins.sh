@@ -51,3 +51,6 @@ if [ ! -e $PEM_FILE ]; then
 fi
 
 "$SCRIPTS_PATH"/bin/install_tools.sh
+
+# Create a volume for JENKINS_HOME
+./refresh_jenkins_home.sh

@@ -1,11 +1,8 @@
 #!/bin/sh
 set -eux
 
-JENKINS_HOME="`realpath $(dirname $0)`"/jenkins_home
-
 docker run \
   --name jenkins \
-  -u $(id -u) \
   --rm \
   --detach \
   --network jenkins \
@@ -14,7 +11,7 @@ docker run \
   --env DOCKER_TLS_VERIFY=1 \
   --publish 8443:8443 \
   --volume /dev/bus/usb:/dev/bus/usb \
-  --volume "$JENKINS_HOME":/var/jenkins_home \
+  --volume myci-jenkins-home:/var/jenkins_home \
   --volume jenkins-docker-certs:/certs/client:ro \
   jenkins/jenkins:lts \
   --httpPort=-1 \

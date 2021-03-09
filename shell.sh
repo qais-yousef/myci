@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eux
 
-docker exec -u $(id -u) -it jenkins bash
+docker exec -it jenkins bash
