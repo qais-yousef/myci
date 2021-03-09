@@ -17,4 +17,4 @@ docker run \
   --httpPort=-1 \
   --httpsPort=8443 \
   --httpsKeyStore=/var/jenkins_home/jenkins_keystore.jks \
-  --httpsKeyStorePassword=$(cat jenkins_keystore.pass)
+  --httpsKeyStorePassword=$(cat certs/jenkins_keystore.pass)
