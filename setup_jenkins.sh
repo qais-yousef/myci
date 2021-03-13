@@ -44,7 +44,6 @@ if [ ! -e "$KEY_FILE" ]; then
 		-storepass $(cat "$KEY_PASS_FILE") \
 		$san \
 		-keysize 4096
-	cp "$KEY_FILE" "$SCRIPTS_PATH"/jenkins_home/
 fi
 
 if [ ! -e "$PKCS12_FILE" ]; then
