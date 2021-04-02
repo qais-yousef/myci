@@ -5,11 +5,9 @@ This project is still Work In Progress
 # Pre-requisites
 
 `sudo apt install docker.io`
-`sudo apt install openjdk-14-jre-headless`
+`sudo apt install default-jre`
+`sudo apt install default-jre-headless`
 `sudo apt install openssl`
-
-We need keytool from openjdk-14-jre-headless. The exact version shouldn't
-matter. 14 was the latest at the time of writing.
 
 # Setup rootless docker
 
@@ -83,8 +81,8 @@ you might want to take note of these plugins names first.
 
 ### Create First Admin User
 
-You can just use the admin user. But it is recommended to create your own
-unprivileged user account.
+You can just use the admin user. But it is recommended to create your own user
+account.
 
 ### Instance Configuration
 
@@ -144,6 +142,10 @@ inside a docker image. Only one of the servers will be able to see the device.
 
 So make sure to run `adb kill-server` in the host machine to allow the docker
 image access to the device via adb.
+
+This is only relevant if you're running your test on jenkins master. If you're
+running on a node, then no docker image is running there, so there won't be
+a problem.
 
 # Shell into docker image
 
