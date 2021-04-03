@@ -376,19 +376,30 @@ class BuildsDB:
                 if ts2 - ts1 > timeout:
                     self.regenerate()
         else:
+            self.db = {}
+            self.db['jobs'] = []
             self.regenerate()
 
     def regenerate(self):
         myci = MyCI(silent=True)
-        self.db = {}
-        self.db['jobs'] = []
 
         for name in myci.list_jobs():
-            self.db['jobs'].append(name)
+            # Is it a new job that we didn't see before?
+            if name not in self.db['jobs']:
+                self.db['jobs'].append(name)
+                self.db[name] = []
+                lastbuild = 0
+            else:
+                lastbuild = len(self.db[name])
 
             job = myci.find_job(name)
-            self.db[name] = []
-            for build in job.all_builds:
+
+            numbuilds = len(job.all_builds)
+            if lastbuild == numbuilds:
+                continue
+
+            newbuilds = numbuilds - lastbuild
+            for build in job.all_builds[:newbuilds]:
                 d = {
                         'url' : build.url,
                         'result' : build.result if build.result else 'Running',
