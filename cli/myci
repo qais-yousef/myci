@@ -394,8 +394,11 @@ class BuildsDB:
 
             job = myci.find_job(name)
 
-            numbuilds = len(job.all_builds)
-            if lastbuild == numbuilds:
+            try:
+                numbuilds = len(job.all_builds)
+                if lastbuild == numbuilds:
+                    continue
+            except:
                 continue
 
             newbuilds = numbuilds - lastbuild
