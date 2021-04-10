@@ -9,3 +9,12 @@ docker rm jenkins_home
 
 # Delete files we ignore but pulled anyway
 git clean -fXdq $JENKINS_HOME
+
+# Delete files our subkmodules ignore too
+submodules="$(dirname $(find jenkins_home/jobs -maxdepth 2 -name .git))"
+for sm in $submodules
+do
+	pushd $sm >/dev/null
+	git clean -fXdq
+	popd >/dev/null
+done
