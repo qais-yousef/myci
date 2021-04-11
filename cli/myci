@@ -602,7 +602,7 @@ class MyCI:
             build = job.get_build_by_number(build_number)
 
             if build:
-                pydoc.pager(build.console_output)
+                pydoc.pipepager(build.console_output, cmd='less -R')
                 return
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
