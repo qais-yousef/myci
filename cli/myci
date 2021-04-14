@@ -339,7 +339,7 @@ class TagsDB:
 
         return self.db[tag]['jobs'].items()
 
-    def get_console_list(self):
+    def get_builds_list(self):
         jobs = []
         for tag in self.get_tags_list():
             for (job, buildnumber) in self.db[tag]['jobs'].items():
@@ -406,7 +406,7 @@ class BuildsDB:
                 d = {
                         'url' : build.url,
                         'result' : build.result if build.result else 'Running',
-                        'console' : "{}:{}".format(name, build.number)
+                        'builds' : "{}:{}".format(name, build.number)
                 }
                 self.db[name].append(d)
 
@@ -417,10 +417,10 @@ class BuildsDB:
     def get_jobs_list(self):
         return self.db['jobs']
 
-    def get_console_list(self, job):
+    def get_builds_list(self, job):
         jobs = []
         for build in self.db[job]:
-            jobs.append(build['console'])
+            jobs.append(build['builds'])
         return jobs
 
 
@@ -607,6 +607,18 @@ class MyCI:
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
 
+    def set_description(self, test_job, build_number, description):
+        job = self.find_job(test_job)
+
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                build.description = description
+                return
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
     def list_builds(self, test_job):
         job = self.find_job(test_job)
 
@@ -776,13 +788,13 @@ class App:
         def list_jobs(**kwargs):
             return BuildsDB().get_jobs_list()
 
-        def console_list(prefix, **kwargs):
+        def builds_list(prefix, **kwargs):
             buildsdb = BuildsDB()
             jobs = buildsdb.get_jobs_list()
             job = prefix.split(':')[0]
 
             if job in jobs:
-                return buildsdb.get_console_list(job)
+                return buildsdb.get_builds_list(job)
             else:
                 return [job + ':' for job in jobs]
 
@@ -795,7 +807,9 @@ class App:
         parser.add_argument('-T', '--test', type=str,
                         help='Run this single test only. Use -p option to get a list of tests.').completer = list_jobs
         parser.add_argument('--console', type=str,
-                        help='Print out the console output of the <job:build_number> tuple.').completer = console_list
+                        help='Print out the console output of the <job:build_number> tuple.').completer = builds_list
+        parser.add_argument('--set-description', type=str,
+                        help='Set the description of the <job:build_number> tuple.').completer = builds_list
         parser.add_argument('-b', '--builds', type=str,
                         help='Print out the status of the last 20 builds of a job.').completer = list_jobs
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
@@ -836,6 +850,12 @@ class App:
 
         self.myci = MyCI(self.args.tag, self.args.param)
 
+        def parse_build_tuple(build):
+            build = build.split(':')
+            job = build[0]
+            build_number = int(build[1])
+            return (job, build_number)
+
         #
         # Now, what did the user ask us to do?
         #
@@ -844,10 +864,14 @@ class App:
             exit()
 
         if self.args.console:
-            console = self.args.console.split(':')
-            job = console[0]
-            build_number = int(console[1])
+            (job, build_number) = parse_build_tuple(self.args.console)
             self.myci.print_console(job, build_number)
+            exit()
+
+        if self.args.set_description:
+            (job, build_number) = parse_build_tuple(self.args.set_description)
+            description = input('Enter descriptin for {}:{}: '.format(job, build_number))
+            self.myci.set_description(job, build_number, description)
             exit()
 
         if self.args.builds:
