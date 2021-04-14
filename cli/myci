@@ -668,6 +668,41 @@ class MyCI:
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
 
+    def __list_forever(self):
+        url = '{}/api/xml?depth=4&xpath=//job[not(ancestor::primaryView)andnot(ancestor::view)andnot(ancestor::node)]/build[keepLog=%22true%22]/url&wrapper=forever'.format(self.config.get_url())
+        r = requests.get(url, auth=(self.config.get_username(), self.config.get_token()))
+        import defusedxml.ElementTree as et
+        forever = et.fromstring(r.text)
+        urls = forever.findall('url')
+        return [url.text for url in urls]
+
+    def list_forever(self):
+        for url in self.__list_forever():
+            print(url)
+        return
+
+    def keep_forever(self, test_job, build_number):
+        job = self.find_job(test_job)
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                build_url = build.url
+
+                if build_url in self.__list_forever():
+                    print("{}:{} is already set as keep forever".format(test_job, build_number))
+                    return
+
+                url = os.path.join(build_url, 'toggleLogKeep')
+                r = requests.post(url, auth=(self.config.get_username(), self.config.get_token()))
+                if r.status_code != 200:
+                    print("Keep forever {}:{}... FAILED ({})".format(test_job, build_number, r.status_code))
+                else:
+                    print("Keep forever {}:{}... SUCCESS".format(test_job, build_number))
+                return
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
     def list_builds(self, test_job):
         job = self.find_job(test_job)
 
@@ -863,6 +898,10 @@ class App:
                         help='List artifacts from <job:build_number>.').completer = builds_list
         parser.add_argument('--get-artifacts', type=str,
                         help='Download artifacts from <job:build_number>.').completer = builds_list
+        parser.add_argument('--list-forever', action='store_true',
+                        help='List all keep forever builds.')
+        parser.add_argument('--keep-forever', type=str,
+                        help='Mark <job:build_number> as keep forever.').completer = builds_list
         parser.add_argument('-b', '--builds', type=str,
                         help='Print out the status of the last 20 builds of a job.').completer = list_jobs
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
@@ -935,6 +974,15 @@ class App:
         if self.args.get_artifacts:
             (job, build_number) = parse_build_tuple(self.args.get_artifacts)
             self.myci.get_artifacts(job, build_number)
+            exit()
+
+        if self.args.list_forever:
+            self.myci.list_forever()
+            exit()
+
+        if self.args.keep_forever:
+            (job, build_number) = parse_build_tuple(self.args.keep_forever)
+            self.myci.keep_forever(job, build_number)
             exit()
 
         if self.args.builds:
