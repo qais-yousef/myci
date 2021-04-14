@@ -619,6 +619,55 @@ class MyCI:
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
 
+    def list_artifacts(self, test_job, build_number):
+        job = self.find_job(test_job)
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                urls = build.artifact_urls
+                if not urls:
+                    print('No artifacts for {}:{}'.format(test_job, build_number))
+                    return
+
+                for url in urls:
+                    print(url)
+                return
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
+    def get_artifacts(self, test_job, build_number):
+        path = '{}:{}-artifacts'.format(test_job, build_number)
+        if os.path.exists(path):
+            raise Exception('{} already exists'.format(path))
+
+        job = self.find_job(test_job)
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                urls = build.artifact_urls
+                if not urls:
+                    print('No artifacts for {}:{}'.format(test_job, build_number))
+                    return
+
+                os.makedirs(path)
+                for url in urls:
+                    artifact = os.path.join(path, os.path.basename(url))
+                    print("Downloading {}...".format(artifact), end='\r')
+                    r = requests.get(url, auth=(self.config.get_username(), self.config.get_token()))
+                    if r.status_code != 200:
+                        print("Downloading {}... FAILED ({})".format(artifact, r.status_code))
+                        continue
+                    else:
+                        print("Downloading {}... SUCCESS".format(artifact))
+
+                    with open(artifact, 'wb') as fp:
+                        fp.write(r.content)
+                return
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
     def list_builds(self, test_job):
         job = self.find_job(test_job)
 
@@ -807,9 +856,13 @@ class App:
         parser.add_argument('-T', '--test', type=str,
                         help='Run this single test only. Use -p option to get a list of tests.').completer = list_jobs
         parser.add_argument('--console', type=str,
-                        help='Print out the console output of the <job:build_number> tuple.').completer = builds_list
+                        help='Print out the console output of <job:build_number>.').completer = builds_list
         parser.add_argument('--set-description', type=str,
-                        help='Set the description of the <job:build_number> tuple.').completer = builds_list
+                        help='Set the description of <job:build_number>.').completer = builds_list
+        parser.add_argument('--list-artifacts', type=str,
+                        help='List artifacts from <job:build_number>.').completer = builds_list
+        parser.add_argument('--get-artifacts', type=str,
+                        help='Download artifacts from <job:build_number>.').completer = builds_list
         parser.add_argument('-b', '--builds', type=str,
                         help='Print out the status of the last 20 builds of a job.').completer = list_jobs
         parser.add_argument('-P', '--param', type=str, nargs='+', metavar='PARAM=VAL',
@@ -872,6 +925,16 @@ class App:
             (job, build_number) = parse_build_tuple(self.args.set_description)
             description = input('Enter descriptin for {}:{}: '.format(job, build_number))
             self.myci.set_description(job, build_number, description)
+            exit()
+
+        if self.args.list_artifacts:
+            (job, build_number) = parse_build_tuple(self.args.list_artifacts)
+            self.myci.list_artifacts(job, build_number)
+            exit()
+
+        if self.args.get_artifacts:
+            (job, build_number) = parse_build_tuple(self.args.get_artifacts)
+            self.myci.get_artifacts(job, build_number)
             exit()
 
         if self.args.builds:
