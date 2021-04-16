@@ -678,7 +678,19 @@ class MyCI:
 
     def list_forever(self):
         for url in self.__list_forever():
-            print(url)
+            job, build_number = os.path.split(os.path.dirname(url))
+            job = job.replace(self.config.get_url() + '/', '')
+            job = job.replace('job/', '')
+            description = ""
+
+            job = self.find_job(job)
+            if (job):
+                build = job.get_build_by_number(int(build_number))
+
+                if build:
+                    description = build.description
+
+            print('{url:<{length}s}'.format(url=url, length=100), '\t', description)
         return
 
     def keep_forever(self, test_job, build_number):
