@@ -3,20 +3,86 @@
 For each target system you want to execute tests on, you must create a Jenkins
 Node.
 
-# Manage Linux systems natively
-# Manage Linux systems via SSH
+There are several configurations to setup your NODEs and DUTs (Device Under
+Test).
+
+# Manage Linux DUTs natively
+
+In this configuration your NODE and DUT are the same. We start the jenkins node
+inside the DUT where it can run the test localy/natively on the DUT.
+
+               DUT
+     +---------------------+
+     |.......              |
+     |. j   .              |
+     |. e n .              |
+     |. n o .              |
+     |. k d .              |
+     |. i e .              |
+     |. n   .              |
+     |. s   .              |
+     |.......              |
+     +---------------------+
+
+# Manage Linux DUTs via SSH
+
+In this configuration your NODE and DUT are different systems that communicate
+via SSH. The NODE in this case can be any system that is able to communicate
+with the DUT via SSH.
+
+This configuration is useful when you can't setup a NODE in the DUT (it's
+a small IoT device maybe) or you don't want Jenkins to interfere with your
+testing.
+
+             NODE                               DUT
+     +---------------------+          +---------------------+
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |   SSH    |                     |
+     |                     |<========>|                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     +---------------------+          +---------------------+
+
 # Manage Android devices via ADB
+
+Similar to previous configuration but instead of SSH we communicate with the
+DUT via ADB - which imply an Android based DUT.
+
+You can use Wireless ADB or talk via USB.
+
+             NODE                               DUT
+     +---------------------+          +---------------------+
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |   ADB    |                     |
+     |                     |<========>|                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     |                     |          |                     |
+     +---------------------+          +---------------------+
 
 # Pre-requisites
 
 `sudo apt install default-jre`
 `sudo apt install adb`
 
+It is better to get adb from latest sdk. The distribution version is usually
+old and don't work with latest devices.
+
+	[https://developer.android.com/studio/releases/platform-tools]
+
 # Jenkins User
 
-Like Jenkins server, it'd be safer to create a special Jenkins on the node too.
-In case there's a security problem in Jenkins that allows external actor to
-gain access to your system, then Jenkins user will limit their accessibility.
+Like Jenkins server, it'd be safer to create a special Jenkins user on the node
+too. In case there's a security problem in Jenkins that allows external actor
+to gain access to your system, then Jenkins user will limit their
+accessibility.
 
 `sudo adduser jenkins`
 
@@ -42,7 +108,8 @@ Set `Remote root directory` to the workspace directory you created above
 Set `labels` to match node name. Labels are used to manage where your jobs are
 run. You can assign a label to a group of nodes. And you can set more than one
 label for each node. For example you can have `android` label for all of your
-adroid devices, then you can tell a job to select any node that has this label.
+android devices, then you can tell a job to select any node that has this
+label.
 
 Set `Usage` to `Only builds jobs with label expressions matching this node`.
 
@@ -52,5 +119,24 @@ password respectively.
 
 # Environment variables
 
+You must define some environment variables to help identify the NODE
+configuration.
+
+## MYCI_NODE_TYPE
+
+Must be one of two:
+- linux
+- android
+
 ## IPADDRESS
+
+Only required if you're talking via ssh or adb.
+
 ## PORT
+
+The port to connect to via ssh or adb. Required if IPADDRESS is set.
+
+# Setting up Wireless ADB
+
+[Android 11+](https://developer.android.com/studio/command-line/adb#connect-to-a-device-over-wi-fi-android-11+)
+[Android 10 or lower](https://developer.android.com/studio/command-line/adb#wireless)
