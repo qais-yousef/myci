@@ -117,6 +117,19 @@ In `Shell` section set `Shell executable` to `/bin/bash`.
 
 Click `Save` button to save and exit.
 
+### Setup shared pipeline libraries
+
+From `Configure System` page
+
+	Manage Jenkins -> Configure System
+
+In `Global Pipeline Libraries` set:
+
+- `Name` to `myci`
+- `Default version` to `main`
+- `Project respository` to `https://github.com/qais-yousef/myci`
+- Select `Load implicitly`
+
 ### Run your first job
 
 You're all ready now!
