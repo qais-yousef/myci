@@ -75,7 +75,22 @@ You can use Wireless ADB or talk via USB.
 It is better to get adb from latest sdk. The distribution version is usually
 old and don't work with latest devices.
 
-	[https://developer.android.com/studio/releases/platform-tools]
+[https://developer.android.com/studio/releases/platform-tools](https://developer.android.com/studio/releases/platform-tools)
+
+Download latest commandline tools from here:
+
+[https://developer.android.com/studio](https://developer.android.com/studio)
+
+You might need to move cmdline-tools to `latest` if you get an error telling
+you to do so.
+
+And use bundled sdkmanager to install build-tools
+
+`$SDK_HOME/cmdline-tools/latest/bin/sdkmanager --list`
+
+Note down the latest version of build-tools, then get it
+
+`$SDK_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;$VERSION"`
 
 # Jenkins User
 
@@ -135,6 +150,13 @@ Only required if you're talking via ssh or adb.
 ## PORT
 
 The port to connect to via ssh or adb. Required if IPADDRESS is set.
+
+## PATH
+
+You might want to update PATH to point to the location of where to find
+android-sdk and ~/.local/bin if you install python deps locally.
+
+`$HOME/.local/bin:$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/$VERSION/:$PATH`
 
 # Setting up Wireless ADB
 
