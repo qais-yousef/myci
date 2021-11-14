@@ -3,7 +3,7 @@ def call() {
 	case "android":
 		if (env.IPADDRESS && env.PORT) {
 			sh '''
-				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_unlock"
+				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_unlock" || true
 				adb disconnect ${IPADDRESS}:${PORT}
 			'''
 		} else {

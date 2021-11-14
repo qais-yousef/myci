@@ -4,8 +4,8 @@ def call() {
 		if (env.IPADDRESS && env.PORT) {
 			sh '''
 				adb connect ${IPADDRESS}:${PORT}
-				adb -s ${IPADDRESS}:${PORT} root
-				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_lock"
+				adb -s ${IPADDRESS}:${PORT} root || true
+				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_lock" || true
 			'''
 		} else {
 			error "Missing IPADDRESS and/or PORT info"
