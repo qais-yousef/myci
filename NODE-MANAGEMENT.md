@@ -101,6 +101,43 @@ accessibility.
 
 `sudo adduser jenkins`
 
+## Setup trace-cmd and perfetto on Native Linux
+
+On Native Linux nodes, if you want to allow the user to run trace-cmd or
+perfetto without giving it root privileges:
+
+### Create a trace group and add Jenkins user to it
+
+```
+sudo addgroup trace
+sudo usermod -a -G trace jenkins
+```
+
+### Install/Download trace-cmd or perfetto
+
+`sudo apt install trace-cmd`
+
+Download latest perfetto for Linux from github
+
+[https://github.com/google/perfetto/releases](https://github.com/google/perfetto/releases)
+
+### Setup permissions, owner and setuid on the binaries
+
+```
+sudo chown root:trace /usr/local/bin/trace-cmd
+sudo chmod u+s o-x /usr/local/bin/trace-cmd
+```
+
+```
+sudo cp $PATH_TO_PERFETTO_DOWNLOAD/* /usr/local/bin/
+for bin in $PATH_TO_PERFETTO_DOWN/*
+do
+	bin=`basename $bin`
+	sudo chown root:trace /usr/local/bin/$bin
+	sudo chmod u+s,ug+x,o-x /usr/local/bin/$bin
+done
+```
+
 # Create workspace directory for jenkins
 
 Login as jenkins user
