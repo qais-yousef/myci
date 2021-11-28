@@ -125,7 +125,7 @@ Download latest perfetto for Linux from github
 
 ```
 sudo chown root:trace /usr/local/bin/trace-cmd
-sudo chmod u+s o-x /usr/local/bin/trace-cmd
+sudo chmod u+s,o-x /usr/local/bin/trace-cmd
 ```
 
 ```
