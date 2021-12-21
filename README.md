@@ -77,7 +77,7 @@ account.
 
 ### Instance Configuration
 
-The choice doesn't matter. I usually skip.
+Default settings are usually fine to create correct urls for the jobs.
 
 ### Blue Ocean Plugin
 
