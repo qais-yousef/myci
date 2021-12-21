@@ -49,7 +49,3 @@ fi
 if [ ! -e "$PEM_FILE" ]; then
 	openssl pkcs12 -in "$PKCS12_FILE" -out "$PEM_FILE" -passin "pass:$(cat $KEY_PASS_FILE)" -passout "pass:$(cat $KEY_PASS_FILE)"
 fi
-
-# Setup git so that we can clone
-git config --global user.email jenkins@sniknej.com
-git config --global user.name jenkins

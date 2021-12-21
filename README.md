@@ -98,6 +98,15 @@ box when all dependencies are installed.
 The GUI sometimes seems to have hanged when Jenkins restarts. If you stopped
 seeing any updates on the page, refresh it.
 
+### Setup git user.name and user.email
+
+From `Configure System` page
+
+	Manage Jenkins -> Configure System
+
+In `Git plugin` section set `Global Config user.name Value` and
+`Global Config user.email Value`.
+
 ### Setup bash as default shell
 
 From `Configure System` page
