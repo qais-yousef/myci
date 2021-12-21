@@ -4,3 +4,6 @@ jenkins_home/jobs/*/workspace*/*
 jenkins_home/jobs/*/nextBuildNumber
 !jenkins_home/jobs
 certs/
+bin/jenkins.war
+nohup.out
+jenkins.pid

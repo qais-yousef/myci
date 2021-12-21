@@ -4,16 +4,8 @@ set -x
 SCRIPTS_PATH="$(realpath $(dirname $0))"
 
 # Get latest jenkins LTS
-docker pull jenkins/jenkins:lts
-
-# And busybox which we used to do some dummy stuff
-docker pull busybox
-
-# Create a network bridge
-docker network create jenkins
-
-# Create volume for TLS certificates
-docker volume create jenkins-docker-certs
+mkdir -p "$SCRIPTS_PATH/bin"
+wget https://get.jenkins.io/war-stable/latest/jenkins.war -O "$SCRIPTS_PATH/bin/jenkins.war"
 
 set -e
 
@@ -58,7 +50,6 @@ if [ ! -e "$PEM_FILE" ]; then
 	openssl pkcs12 -in "$PKCS12_FILE" -out "$PEM_FILE" -passin "pass:$(cat $KEY_PASS_FILE)" -passout "pass:$(cat $KEY_PASS_FILE)"
 fi
 
-"$SCRIPTS_PATH"/bin/install_tools.sh
-
-# Create a volume for JENKINS_HOME
-./refresh_jenkins_home.sh
+# Setup git so that we can clone
+git config --global user.email jenkins@sniknej.com
+git config --global user.name jenkins

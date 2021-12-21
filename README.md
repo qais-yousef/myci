@@ -4,36 +4,17 @@ This project is still Work In Progress
 
 # Pre-requisites
 
-`sudo apt install docker.io`
 `sudo apt install default-jre`
 `sudo apt install default-jre-headless`
 `sudo apt install openssl`
 
-# Setup rootless docker
-
-It is advised not to run docker as root and to create a special jenkins user
-for it that has minimum privileges.
-
-	https://docs.docker.com/engine/security/rootless/
-
-## Jenkins User
+# Jenkins User
 
 It'd be safer to create a special Jenkins user to run your server. In case
 there's a security problem in Jenkins that allows external actor to gain access
 to your system, then Jenkins user will limit their accessibility.
 
 `sudo adduser jenkins`
-
-## Quick Guide
-
-```
-sudo apt install uidmap
-wget https://get.docker.com/rootless
-chmod +x rootless
-./rootless
-# Copy the generated 'export' highlighted by rootless to your .bashrc or
-# .bash_alias
-```
 
 # First time setup
 
@@ -56,6 +37,16 @@ If you're accessing the server via localhost then use that as SERVER_DNS_NAME.
 ## Start Jenkins
 
 `./start_jenkins.sh`
+
+### Java version
+
+Jenkins is picky about which java version to use. If you encounter issues (look
+at nohup.out), then check the latest docs of Jenkins
+
+[https://www.jenkins.io/doc/administration/requirements/java/](https://www.jenkins.io/doc/administration/requirements/java/)
+
+You can update your PATH to point to the right java version for `jenkins` user
+if you had to install multiple versions of java.
 
 ## Access Jenkins
 
@@ -117,19 +108,6 @@ In `Shell` section set `Shell executable` to `/bin/bash`.
 
 Click `Save` button to save and exit.
 
-### Setup shared pipeline libraries
-
-From `Configure System` page
-
-	Manage Jenkins -> Configure System
-
-In `Global Pipeline Libraries` set:
-
-- `Name` to `myci`
-- `Default version` to `main`
-- `Project respository` to `https://github.com/qais-yousef/myci`
-- Select `Load implicitly`
-
 ### Run your first job
 
 You're all ready now!
@@ -147,23 +125,3 @@ prompted.
 ## Stop
 
 `./stop_jenkins.sh`
-
-# Using adb in Jenkins
-
-You can't have 2 adb servers running in the machine, even if one of them is
-inside a docker image. Only one of the servers will be able to see the device.
-
-So make sure to run `adb kill-server` in the host machine to allow the docker
-image access to the device via adb.
-
-This is only relevant if you're running your test on jenkins master. If you're
-running on a node, then no docker image is running there, so there won't be
-a problem.
-
-# Shell into docker image
-
-`./shell.sh`
-
-## Root shell
-
-`./root_shell.sh`
