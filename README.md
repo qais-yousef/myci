@@ -107,6 +107,8 @@ From `Configure System` page
 In `Git plugin` section set `Global Config user.name Value` and
 `Global Config user.email Value`.
 
+Click `Save` button to save and exit.
+
 ### Setup bash as default shell
 
 From `Configure System` page
@@ -114,6 +116,18 @@ From `Configure System` page
 	Manage Jenkins -> Configure System
 
 In `Shell` section set `Shell executable` to `/bin/bash`.
+
+Click `Save` button to save and exit.
+
+### Setup Global Pipeline Libraries
+
+From `Configure System` page
+
+	Manage Jenkins -> Configure System
+
+In `Global Pipeline Libraries` section set `name` to `myci`, `Default version`
+to `main`, tick `Load implicitly` and set `Project Repository` to
+`https://github.com/qais-yousef/myci` or to your own fork of it.
 
 Click `Save` button to save and exit.
 
