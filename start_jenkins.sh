@@ -2,7 +2,7 @@
 set -eux
 
 ROOT_PATH="$(realpath $(dirname $0))"
-JENKINS_HOME="$ROOT_PATH/jenkins_home"
+export JENKINS_HOME="$ROOT_PATH/jenkins_home"
 JENKINS_WAR="$ROOT_PATH/bin/jenkins.war"
 CERTS_PATH="$ROOT_PATH/certs"
 
@@ -11,7 +11,7 @@ if [ -e "$ROOT_PATH/jenkins.pid" ]; then
 	exit 1
 fi
 
-nohup java -Duser.home="$JENKINS_HOME" -jar ${JENKINS_WAR} \
+nohup java -jar "$JENKINS_WAR" \
   --httpPort=-1 \
   --httpsPort=8443 \
   --httpsKeyStore="$CERTS_PATH/jenkins_keystore.jks" \
