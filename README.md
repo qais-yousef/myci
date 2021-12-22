@@ -4,9 +4,11 @@ This project is still Work In Progress
 
 # Pre-requisites
 
-`sudo apt install default-jre`
-`sudo apt install default-jre-headless`
-`sudo apt install openssl`
+```
+sudo apt install default-jre
+sudo apt install default-jre-headless
+sudo apt install openssl
+```
 
 # Jenkins User
 
