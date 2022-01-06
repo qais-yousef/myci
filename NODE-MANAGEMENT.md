@@ -81,16 +81,28 @@ Download latest commandline tools from here:
 
 [https://developer.android.com/studio](https://developer.android.com/studio)
 
+```
+mkdir ~/android-sdk/
+cd ~/android-sdk/
+unzip path/to/commandlinetools-linux-XXXXX_latest.zip
+```
+
 You might need to move cmdline-tools to `latest` if you get an error telling
 you to do so.
 
+```
+cd ~/android-sdk/cmdline-tools
+mkdir latest
+mv * latest/
+```
+
 And use bundled sdkmanager to install build-tools
 
-`$SDK_HOME/cmdline-tools/latest/bin/sdkmanager --list`
+`~/android-sdk/cmdline-tools/latest/bin/sdkmanager --list`
 
 Note down the latest version of build-tools, then get it
 
-`$SDK_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;$VERSION"`
+`~/android-sdk/cmdline-tools/latest/bin/sdkmanager "build-tools;$VERSION"`
 
 # Jenkins User
 
