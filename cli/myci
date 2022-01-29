@@ -381,6 +381,14 @@ class BuildsDB:
             self.regenerate()
 
     def regenerate(self):
+        self.db['timestamp'] = time.time()
+        with open(BUILDS_DB, 'w') as fd:
+            json.dump(self.db, fd, indent=4)
+
+        pid = os.fork()
+        if pid:
+            return
+
         myci = MyCI(silent=True)
 
         for name in myci.list_jobs():
@@ -410,9 +418,10 @@ class BuildsDB:
                 }
                 self.db[name].append(d)
 
-        self.db['timestamp'] = time.time()
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
+
+        exit(0)
 
     def get_jobs_list(self):
         return self.db['jobs']
