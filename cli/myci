@@ -60,6 +60,15 @@ if not os.path.exists(CONFIG_PATH):
 DEFAULT_VIEW='all'
 
 
+#
+# Internal logging
+#
+LOG_FILE=os.path.join(CONFIG_PATH, 'log')
+def LOG(info):
+    with open(LOG_FILE, 'a') as f:
+        f.write("[" + str(time.time()) + "]: " + info + "\n")
+
+
 ###############################################
 #
 # Version class manages the version of the
@@ -385,10 +394,13 @@ class BuildsDB:
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
 
+        LOG("Regenerate, forking..")
         pid = os.fork()
         if pid:
+            LOG("Regenerate, parent returned.")
             return
 
+        LOG("Regenerate, child start..")
         myci = MyCI(silent=True)
 
         for name in myci.list_jobs():
@@ -421,6 +433,7 @@ class BuildsDB:
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
 
+        LOG("Regenerate, child finished.")
         exit(0)
 
     def get_jobs_list(self):
@@ -913,13 +926,16 @@ class App:
             return tagsdb.get_tags_list()
 
         def list_jobs(**kwargs):
+            LOG("argcomplte: list jobs..")
             return BuildsDB().get_jobs_list()
 
         def builds_list(prefix, **kwargs):
+            LOG("argcomplte: [1] list builds..")
             buildsdb = BuildsDB()
             jobs = buildsdb.get_jobs_list()
             job = prefix.split(':')[0]
 
+            LOG("argcomplte: [2] list builds..")
             if job in jobs:
                 return buildsdb.get_builds_list(job)
             else:
