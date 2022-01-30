@@ -395,13 +395,13 @@ class BuildsDB:
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
 
-        LOG("Regenerate, forking..")
+        LOG("Regenerate, forking")
         pid = os.fork()
         if pid:
-            LOG("Regenerate, parent returned.")
+            LOG("Regenerate, parent returned")
             return
 
-        LOG("Regenerate, child start..")
+        LOG("Regenerate, child start")
         myci = MyCI(silent=True)
 
         for name in myci.list_jobs():
@@ -434,7 +434,7 @@ class BuildsDB:
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
 
-        LOG("Regenerate, child finished.")
+        LOG("Regenerate, child finished")
         exit(0)
 
     def get_jobs_list(self):
@@ -927,16 +927,15 @@ class App:
             return tagsdb.get_tags_list()
 
         def list_jobs(**kwargs):
-            LOG("argcomplte: list jobs..")
+            LOG("argcomplte: list jobs")
             return BuildsDB().get_jobs_list()
 
         def builds_list(prefix, **kwargs):
-            LOG("argcomplte: [1] list builds..")
+            LOG("argcomplte: list builds")
             buildsdb = BuildsDB()
             jobs = buildsdb.get_jobs_list()
             job = prefix.split(':')[0]
 
-            LOG("argcomplte: [2] list builds..")
             if job in jobs:
                 return buildsdb.get_builds_list(job)
             else:
