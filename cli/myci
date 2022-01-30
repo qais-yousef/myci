@@ -375,21 +375,22 @@ class TagsDB:
 #
 ###############################################
 class BuildsDB:
-    def __init__(self, timeout=60):
+    def __init__(self):
         # Load the Json file, if not empty
         if os.path.exists(BUILDS_DB) and os.path.getsize(BUILDS_DB):
             with open(BUILDS_DB) as fd:
                 self.db = json.load(fd)
-                ts1 = self.db['timestamp']
-                ts2 = time.time()
-                if ts2 - ts1 > timeout:
-                    self.regenerate()
         else:
             self.db = {}
             self.db['jobs'] = []
             self.regenerate()
 
-    def regenerate(self):
+    def regenerate(self, timeout=60):
+        ts1 = self.db['timestamp']
+        ts2 = time.time()
+        if ts2 - ts1 < timeout:
+            return
+
         self.db['timestamp'] = time.time()
         with open(BUILDS_DB, 'w') as fd:
             json.dump(self.db, fd, indent=4)
@@ -1008,6 +1009,8 @@ class App:
             job = build[0]
             build_number = int(build[1])
             return (job, build_number)
+
+        BuildsDB().regenerate()
 
         #
         # Now, what did the user ask us to do?
