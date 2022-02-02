@@ -703,7 +703,7 @@ class MyCI:
                                 dl += len(data)
                                 fp.write(data)
                                 done = int(segments * dl / total_length)
-                                print("Downloading {}... [{}{}] {}/{}".format(name, '=' * done, ' ' * (segments-done), int(dl/1024), int(total_length/1024)), end='\r')
+                                print("Downloading {}... {}% [{}{}] {}/{} KiB".format(name, int(dl * 100/total_length) ,'=' * done, ' ' * (segments-done), int(dl/1024), int(total_length/1024)), end='\r')
                     sys.stdout.write("\033[K") # clear line
                     print("Downloading {}... SUCCESS".format(artifact))
 
