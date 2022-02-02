@@ -18,6 +18,7 @@ import fcntl
 import requests
 import pydoc
 import readline
+import sys
 
 # Helpful to debug connection issues
 #import logging
@@ -661,8 +662,6 @@ class MyCI:
 
     def get_artifacts(self, test_job, build_number):
         path = '{}:{}-artifacts'.format(test_job, build_number)
-        if os.path.exists(path):
-            raise Exception('{} already exists'.format(path))
 
         job = self.find_job(test_job)
         if (job):
@@ -674,19 +673,40 @@ class MyCI:
                     print('No artifacts for {}:{}'.format(test_job, build_number))
                     return
 
-                os.makedirs(path)
-                for url in urls:
-                    artifact = os.path.join(path, os.path.basename(url))
-                    print("Downloading {}...".format(artifact), end='\r')
-                    r = requests.get(url, auth=(self.config.get_username(), self.config.get_token()))
-                    if r.status_code != 200:
-                        print("Downloading {}... FAILED ({})".format(artifact, r.status_code))
-                        continue
-                    else:
-                        print("Downloading {}... SUCCESS".format(artifact))
+                if not os.path.exists(path):
+                    os.makedirs(path)
 
+                for url in urls:
+                    name = os.path.basename(url)
+                    artifact = os.path.join(path, name)
+                    if os.path.exists(artifact):
+                        print("{} already downloaded SKIPPING".format(artifact))
+                        continue
+
+                    print("Downloading {}...".format(name), end='\r')
                     with open(artifact, 'wb') as fp:
-                        fp.write(r.content)
+                        r = requests.get(url, auth=(self.config.get_username(), self.config.get_token()), stream=True)
+
+                        if r.status_code != 200:
+                            print("Downloading {}... FAILED ({})".format(name, r.status_code))
+                            os.remove(artifact)
+                            continue
+
+                        total_length = r.headers.get('content-length')
+                        if total_length is None: # no content length header
+                            fp.write(r.content)
+                        else:
+                            dl = 0
+                            total_length = int(total_length)
+                            segments = 10
+                            for data in r.iter_content(chunk_size=int(total_length/100)+1):
+                                dl += len(data)
+                                fp.write(data)
+                                done = int(segments * dl / total_length)
+                                print("Downloading {}... [{}{}] {}/{}".format(name, '=' * done, ' ' * (segments-done), int(dl/1024), int(total_length/1024)), end='\r')
+                    sys.stdout.write("\033[K") # clear line
+                    print("Downloading {}... SUCCESS".format(artifact))
+
                 return
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
