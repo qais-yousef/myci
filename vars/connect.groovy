@@ -5,6 +5,7 @@ def call() {
 			sh '''
 				adb connect ${IPADDRESS}:${PORT}
 				adb -s ${IPADDRESS}:${PORT} root || true
+				adb -s ${IPADDRESS}:${PORT} remount || true
 				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_lock" || true
 			'''
 		} else {
