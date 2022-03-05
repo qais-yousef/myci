@@ -631,6 +631,17 @@ class MyCI:
 
         raise Exception("Can't find {}({})".format(test_job, build_number))
 
+    def get_description(self, test_job, build_number):
+        job = self.find_job(test_job)
+
+        if (job):
+            build = job.get_build_by_number(build_number)
+
+            if build:
+                return build.description
+
+        raise Exception("Can't find {}({})".format(test_job, build_number))
+
     def set_description(self, test_job, build_number, description):
         job = self.find_job(test_job)
 
@@ -1045,6 +1056,8 @@ class App:
 
         if self.args.set_description:
             (job, build_number) = parse_build_tuple(self.args.set_description)
+            description = self.myci.get_description(job, build_number)
+            readline.set_startup_hook(lambda: readline.insert_text(description))
             description = input('Enter descriptin for {}:{}: '.format(job, build_number))
             self.myci.set_description(job, build_number, description)
             exit()
