@@ -121,6 +121,16 @@ In `Shell` section set `Shell executable` to `/bin/bash`.
 
 Click `Save` button to save and exit.
 
+### Setup Global Environment Variables
+
+From `Configure System` page
+
+	Manage Jenkins -> Configure System
+
+In `Global properties` section tick `Environment variables`. Then add
+a variable called `MYCI_BRANCH` and set the default value to `main`. You can
+use this variable to globally switch the default branch of all jobs.
+
 ### Setup Global Pipeline Libraries
 
 From `Configure System` page
