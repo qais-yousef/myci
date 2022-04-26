@@ -100,6 +100,14 @@ box when all dependencies are installed.
 The GUI sometimes seems to have hanged when Jenkins restarts. If you stopped
 seeing any updates on the page, refresh it.
 
+### Copy Artifact Plugin
+
+From `Manage Plugins` page
+
+	Manage Jenkins -> Manage Plugins -> Available
+
+Search for `Copy Artifact`. Select it and install it.
+
 ### Setup git user.name and user.email
 
 From `Configure System` page
