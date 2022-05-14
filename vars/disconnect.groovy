@@ -10,7 +10,7 @@ def call() {
 				# no devices are connected.
 				# After a while some weird connection issues
 				# occur for a long running server daemon..
-				status=`adb devices | grep -v 'List of devices attached' | awk '{print $2}'`
+				status=`adb devices | grep -v 'List of devices attached' | awk '{print \$2}'`
 				if [ "x\$status" == "x" ]; then
 					adb kill-server
 				fi

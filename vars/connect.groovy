@@ -8,7 +8,7 @@ def call() {
 				do
 					adb connect ${IPADDRESS}:${PORT}
 
-					status=`adb devices | grep ${IPADDRESS} | awk '{print $2}'`
+					status=`adb devices | grep ${IPADDRESS} | awk '{print \$2}'`
 
 					if [ "x\$status" == "xdevice" ]; then
 						break
