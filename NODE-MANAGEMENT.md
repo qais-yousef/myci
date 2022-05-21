@@ -11,18 +11,15 @@ Test).
 In this configuration your NODE and DUT are the same. We start the jenkins node
 inside the DUT where it can run the test localy/natively on the DUT.
 
-               DUT
-     +---------------------+
-     |.......              |
-     |. j   .              |
-     |. e n .              |
-     |. n o .              |
-     |. k d .              |
-     |. i e .              |
-     |. n   .              |
-     |. s   .              |
-     |.......              |
-     +---------------------+
+              DUT
+    +----------------------+
+    |                      |
+    | +--------+           |
+    | |Jenkins |           |
+    | | Node   |           |
+    | +--------+           |
+    |                      |
+    +----------------------+
 
 # Manage Linux DUTs via SSH
 
@@ -34,18 +31,17 @@ This configuration is useful when you can't setup a NODE in the DUT (it's
 a small IoT device maybe) or you don't want Jenkins to interfere with your
 testing.
 
-             NODE                               DUT
-     +---------------------+          +---------------------+
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |   SSH    |                     |
-     |                     |<========>|                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     +---------------------+          +---------------------+
+TODO: This config not tried yet.
+
+        Jenkins Node                            DUT
+    +----------------------+          +----------------------+
+    |                      |          |                      |
+    |                      |   ssh    |                      |
+    |                      |<-------->|                      |
+    |                      |          |                      |
+    |                      |          |                      |
+    |                      |          |                      |
+    +----------------------+          +----------------------+
 
 # Manage Android devices via ADB
 
@@ -54,18 +50,17 @@ DUT via ADB - which imply an Android based DUT.
 
 You can use Wireless ADB or talk via USB.
 
-             NODE                               DUT
-     +---------------------+          +---------------------+
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |   ADB    |                     |
-     |                     |<========>|                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     |                     |          |                     |
-     +---------------------+          +---------------------+
+TODO: Add USB support.
+
+        Jenkins Node                            DUT
+    +----------------------+          +----------------------+
+    |                      |          |                      |
+    |                      |   adb    |                      |
+    |                      |<-------->|                      |
+    |                      |          |                      |
+    |                      |          |                      |
+    |                      |          |                      |
+    +----------------------+          +----------------------+
 
 # Pre-requisites
 
