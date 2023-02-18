@@ -1,8 +1,8 @@
 def call() {
 	switch (env.MYCI_NODE_TYPE) {
 	case "android":
-		if (!env.IPADDRESS || !env.PORT) {
-			error "Missing IPADDRESS and/or PORT info"
+		if (!env.ANDROID_SERIAL) {
+			error "Missing ANDROID_SERIAL"
 		}
 		break
 	default:

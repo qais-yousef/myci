@@ -1,29 +1,34 @@
 def call() {
 	switch (env.MYCI_NODE_TYPE) {
 	case "android":
-		if (env.IPADDRESS && env.PORT) {
+		if (env.ANDROID_SERIAL) {
 			sh '''
-				retry=5
-				for i in \$(seq \$retry)
-				do
-					adb connect ${IPADDRESS}:${PORT}
+				IPADDRESS=\$(echo ${ANDROID_SERIAL} | awk -F : '{print \$1}')
+				PORT=\$(echo ${ANDROID_SERIAL} | awk -F : '{print \$2}')
 
-					status=`adb devices | grep ${IPADDRESS} | awk '{print \$2}'`
+				if [ "x\$PORT" != "x" ]; then
+					retry=5
+					for i in \$(seq \$retry)
+					do
+						adb connect \$IPADDRESS:\$PORT
 
-					if [ "x\$status" == "xdevice" ]; then
-						break
-					fi
+						status=`adb devices | grep \$IPADDRESS | awk '{print \$2}'`
 
-					adb disconnect ${IPADDRESS}:${PORT} || true
+						if [ "x\$status" == "xdevice" ]; then
+							break
+						fi
 
-					sleep 3
-				done
-				adb -s ${IPADDRESS}:${PORT} root || true
-				adb -s ${IPADDRESS}:${PORT} remount || true
-				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_lock" || true
+						adb disconnect \$IPADDRESS:\$PORT || true
+
+						sleep 3
+					done
+				fi
+				adb root || true
+				adb remount || true
+				adb shell "echo temp > /sys/power/wake_lock" || true
 			'''
 		} else {
-			error "Missing IPADDRESS and/or PORT info"
+			error "Missing ANDROID_SERIAL"
 		}
 		break
 	default:

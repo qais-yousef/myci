@@ -187,13 +187,12 @@ Must be one of two:
 - linux
 - android
 
-## IPADDRESS
+## ANDROID_SERIAL
 
-Only required if you're talking via ssh or adb.
+Only required for android.
 
-## PORT
-
-The port to connect to via ssh or adb. Required if IPADDRESS is set.
+If you're using adp over TCP, set it to IPADDRESS:PORT, otherwise the serial
+number of the device as display by `adb devices`.
 
 ## PATH
 

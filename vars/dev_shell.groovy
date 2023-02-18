@@ -1,12 +1,12 @@
 def call(cmd) {
 	switch (env.MYCI_NODE_TYPE) {
 	case "android":
-		if (env.IPADDRESS && env.PORT) {
+		if (env.ANDROID_SERIAL) {
 			sh """
-				adb -s ${IPADDRESS}:${PORT} shell \"${cmd}\"
+				adb shell \"${cmd}\"
 			"""
 		} else {
-			error "Missing IPADDRESS and/or PORT info"
+			error "Missing ANDROID_SERIAL"
 		}
 		break
 	default:

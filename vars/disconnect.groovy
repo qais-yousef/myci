@@ -1,10 +1,10 @@
 def call() {
 	switch (env.MYCI_NODE_TYPE) {
 	case "android":
-		if (env.IPADDRESS && env.PORT) {
+		if (env.ANDROID_SERIAL) {
 			sh '''
-				adb -s ${IPADDRESS}:${PORT} shell "echo temp > /sys/power/wake_unlock" || true
-				adb disconnect ${IPADDRESS}:${PORT}
+				adb shell "echo temp > /sys/power/wake_unlock" || true
+				adb disconnect
 
 				# Force a fresh start-server on next start if
 				# no devices are connected.
@@ -16,7 +16,7 @@ def call() {
 				fi
 			'''
 		} else {
-			error "Missing IPADDRESS and/or PORT info"
+			error "Missing ANDROID_SERIAL"
 		}
 		break
 	default:
